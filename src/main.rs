@@ -13,42 +13,28 @@ use axum::{
     extract::{FromRef, FromRequestParts},
 };
 use sqlx::{Executor, PgPool, Pool, Postgres, postgres::PgPoolOptions};
+use dotenv::dotenv;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::error::internal_error;
-use crate::agent::{list_agents, query_agent};
+use crate::agent::lookup_agent;
 
 mod agent;
-mod operator;
 mod error;
-mod db_models;
+mod schema;
 
 
-struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
 
-#[async_trait]
-impl<S> FromRequestParts<S> for DatabaseConnection
-where
-    PgPool: FromRef<S>,
-    S: Send + Sync,
-{
-    type Rejection = (StatusCode, String);
-
-    async fn from_request_parts(_parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let pool = PgPool::from_ref(state);
-
-        let conn = pool.acquire().await.map_err(internal_error)?;
-
-        Ok(Self(conn))
-    }
+pub struct AppState {
+    db: PgPool,
 }
-
-
 
 
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
     // Set-up tracing subscriber, using the environment or a default
     tracing_subscriber::registry()
         .with(
@@ -76,27 +62,29 @@ async fn main() {
         }
     };
 
-    // RESETS THE DATABASE
-    // Remove before production
-    db_pool.execute(include_str!("../migrations/schema.sql"))
-        .await
-        .context("Failed to initialize DB")?;
+    // // RESETS THE DATABASE
+    // // Remove before production
+    // db_pool.execute(include_str!("../migrations/schema.sql"))
+    //     .await
+    //     .context("Failed to initialize DB")?;
 
 
     // create routes
     let app = Router::new()
         .route("/api/healthcheck", get(health_check_handler))
-        .route("/api/agent", get(list_agents))
-        .route("/api/agent/:id", get(query_agent))
+        // .route("/api/agent", get(list_agents))
+        .route("/api/agent/:id", get(lookup_agent))
         // .route("/api/agent", post(register_new_agent))
         // .route("/api/operator", post(register_new_operator))
-        .with_state(db_pool);
+        .with_state(Arc::new(AppState { db: db_pool.clone() }));
 
     // run our app
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
+
+
 
 // Simple health check endpoint
 pub async fn health_check_handler() -> impl IntoResponse {

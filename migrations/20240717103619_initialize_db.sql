@@ -1,0 +1,16 @@
+-- Add migration script here
+
+
+
+-- CREATING AGENTS TABLE --
+
+CREATE TABLE IF NOT EXISTS agents (
+  id UUID NOT NULL PRIMARY KEY,
+  first_ping TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_ping TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  address INET NOT NULL DEFAULT inet '0.0.0.0',
+  notes VARCHAR(500)
+);
+
+INSERT INTO agents VALUES (gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, inet '127.0.0.1', 'Test agent added manually');
+
