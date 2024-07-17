@@ -1,28 +1,24 @@
-
 use std::sync::Arc;
 use std::time::Duration;
+
 use axum::{
     Json,
     Router,
-    async_trait,
     routing::get,
-    routing::post,
-    http::StatusCode,
-    http::request::Parts,
-    response::IntoResponse,
-    extract::{FromRef, FromRequestParts},
 };
-use sqlx::{Executor, PgPool, Pool, Postgres, postgres::PgPoolOptions};
+use axum::response::IntoResponse;
 use dotenv::dotenv;
+use sqlx::{PgPool, postgres::PgPoolOptions};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use crate::agent::{list_all_agents, lookup_agent_by_id};
+use crate::operator::{list_all_operators, lookup_operator_by_id};
 
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use crate::error::internal_error;
-use crate::agent::lookup_agent;
 
 mod agent;
 mod error;
-mod schema;
-
+mod model;
+mod operator;
 
 
 pub struct AppState {
@@ -53,18 +49,18 @@ async fn main() {
         .connect(&conn_url)
         .await {
         Ok(pool) => {
-            tracing::debug!("Successfully connected to the database");
+            tracing::debug!("Successfully connected to the database!");
             pool
         }
         Err(e) => {
-            tracing::error!("Failed to connect to the postgres database");
+            tracing::error!("Failed to connect to the postgres database: {e}");
             std::process::exit(-1)
         }
     };
 
     // // RESETS THE DATABASE
-    // // Remove before production
-    // db_pool.execute(include_str!("../migrations/schema.sql"))
+    // // Remove before shipping
+    // db_pool.execute(include_str!("../migrations/20240717103619_initialize_db.sql"))
     //     .await
     //     .context("Failed to initialize DB")?;
 
@@ -73,7 +69,10 @@ async fn main() {
     let app = Router::new()
         .route("/api/healthcheck", get(health_check_handler))
         // .route("/api/agent", get(list_agents))
-        .route("/api/agent/:id", get(lookup_agent))
+        .route("/api/agent/:id", get(lookup_agent_by_id))
+        .route("/api/agent/all", get(list_all_agents))
+        .route("/api/operator/all", get(list_all_operators))
+        .route("/api/operator/:id", get(lookup_operator_by_id))
         // .route("/api/agent", post(register_new_agent))
         // .route("/api/operator", post(register_new_operator))
         .with_state(Arc::new(AppState { db: db_pool.clone() }));

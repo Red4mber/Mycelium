@@ -1,7 +1,6 @@
 use axum::http::StatusCode;
 use axum::Json;
 
-
 /// Utility function for mapping any error into a `500 Internal Server Error`
 /// response.
 pub fn internal_error<E>(err: E) -> (StatusCode, Json<serde_json::Value>)
