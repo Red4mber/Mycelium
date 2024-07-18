@@ -15,7 +15,7 @@ pub async fn lookup_operator_by_id(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
 
 	let operator = sqlx::query_as!(
-	    super::model::Operator,
+	    crate::model::Operator,
 	    r#"SELECT * FROM operators WHERE id = $1 LIMIT 1"#,
 	    operator_id
 	).fetch_one(&data.db)
@@ -39,7 +39,7 @@ pub async fn list_all_operators(
 
 
 	let all_operators = sqlx::query_as!(
-	    super::model::Operator,
+	    crate::model::Operator,
 	    r#"SELECT * FROM operators LIMIT 100"#
 	).fetch_all(&data.db)
 	 .await
