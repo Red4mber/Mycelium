@@ -27,8 +27,6 @@ pub enum OperatorRole {
 	Operator = 1,
 	Guest = 2
 }
-
-
 impl From<i32> for OperatorRole {
 	fn from(value: i32) -> Self {
 		match value {
@@ -63,18 +61,17 @@ pub struct OperatorPublicInfo {
 	pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-enum TokenType { Agent, Operator }
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TokenClaims {
-	pub typ: TokenType,
+enum TokenType { Agent, Operator } // For later, not used yet
+
+#[derive(Debug,  Serialize, Deserialize)]
+pub struct Claims {
 	pub sub: Uuid,
 	pub iat: usize,
 	pub exp: usize,
-
 }
 
 #[derive(Debug, Deserialize)]
-pub struct OperatorRegisterSchema {
+pub struct OperatorRegisterData {
 	pub referer: Uuid,
 	pub name: String,
 	pub password: String,
@@ -82,6 +79,6 @@ pub struct OperatorRegisterSchema {
 
 #[derive(Debug, Deserialize)]
 pub struct OperatorSignInData {
-	pub name: String,
+	pub email: String,
 	pub password: String,
 }

@@ -1,29 +1,35 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::{
-    Json,
-    Router,
-    routing::get,
-};
-use axum::response::IntoResponse;
+use axum::{Json, Router, routing::{get, post}, response::IntoResponse, middleware};
 use dotenv::dotenv;
+use jsonwebtoken::{DecodingKey, EncodingKey};
+use serde::Deserialize;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use crate::agent::{list_all_agents, lookup_agent_by_id};
-use crate::operator::{list_all_operators, lookup_operator_by_id};
 
 
-mod agent;
+use crate::{
+    routes::agent::{list_all_agents, lookup_agent_by_id},
+    routes::operator::{list_all_operators, lookup_operator_by_id, operator_login},
+    auth::generate_encryption_keys
+};
+use crate::auth::auth;
+
+
 mod error;
 mod model;
-mod operator;
+mod routes;
+mod auth;
 
-
+#[derive(Clone)]
 pub struct AppState {
     db: PgPool,
+    encoding_key: EncodingKey,
+    decoding_key: DecodingKey,
 }
+
 
 
 
@@ -58,24 +64,26 @@ async fn main() {
         }
     };
 
-    // // RESETS THE DATABASE
-    // // Remove before shipping
-    // db_pool.execute(include_str!("../migrations/20240717103619_initialize_db.sql"))
-    //     .await
-    //     .context("Failed to initialize DB")?;
-
+    // Generate a structure containing our shared state: a database connexion and a JWT key-pair
+    let (encoding_key, decoding_key) = generate_encryption_keys();
+    let state = Arc::new(AppState {
+        db: db_pool.clone(),
+        encoding_key,
+        decoding_key,
+    });
 
     // create routes
     let app = Router::new()
-        .route("/api/healthcheck", get(health_check_handler))
         // .route("/api/agent", get(list_agents))
-        .route("/api/agent/:id", get(lookup_agent_by_id))
-        .route("/api/agent/all", get(list_all_agents))
-        .route("/api/operator/all", get(list_all_operators))
-        .route("/api/operator/:id", get(lookup_operator_by_id))
-        // .route("/api/agent", post(register_new_agent))
         // .route("/api/operator", post(register_new_operator))
-        .with_state(Arc::new(AppState { db: db_pool.clone() }));
+        .route("/agent/:id", get(lookup_agent_by_id))
+        .route("/agent/all", get(list_all_agents))
+        .route("/operator/all", get(list_all_operators))
+        .route("/operator", get(lookup_operator_by_id))
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
+        .route("/login", post(operator_login))
+        .route("/healthcheck", get(health_check_handler).post(ping_handler))
+        .with_state(state);
 
     // run our app
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -87,10 +95,26 @@ async fn main() {
 
 // Simple health check endpoint
 pub async fn health_check_handler() -> impl IntoResponse {
-    const MESSAGE: &str = "Mycelium API";
+    Json(serde_json::json!({
+        "status": "ok",
+    }))
+}
+
+
+#[derive(Deserialize)]
+pub struct PingParams {
+    pub name: String
+}
+// Simple Ping endpoint
+// I just needed to try some debug methods
+pub async fn ping_handler(
+    Json(payload): Json<PingParams>
+) -> impl IntoResponse {
+    let message = format!("Hello {} !", payload.name);
     let json_response = serde_json::json!({
         "status": "ok",
-        "message": MESSAGE
+        "message": message
     });
     Json(json_response)
 }
+

@@ -1,7 +1,5 @@
 -- Add migration script here
 
-
-
 -- CREATING AGENTS TABLE --
 
 CREATE TABLE IF NOT EXISTS agents (
@@ -32,5 +30,5 @@ CREATE TABLE IF NOT EXISTS operators (
     );
 CREATE INDEX operators_email_idx ON operators (email);
 
-INSERT INTO operators (name, email, password, created_by, role) VALUES ('Melusine', 'fake@email.lol', 'oops i forgor', '00000000-0000-0000-0000-000000000000', 2);
+INSERT INTO operators (name, email, password, created_by, role) VALUES ('Melusine', 'melusine@fakemail.lol', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 2);
 
