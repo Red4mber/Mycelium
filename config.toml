@@ -1,0 +1,38 @@
+
+[tracing]
+env_filter = "mycelium=debug"
+
+[database]
+host = "localhost"
+username = "postgres"
+password = "4m4n1t4"
+db_name = "mycelium"
+
+[http.listener]
+addr = "0.0.0.0"
+port = 3000
+
+[http.routes.unauthenticated]
+login = "/login"
+ping = "/healthcheck"
+healthcheck = "/healthcheck"
+
+[http.routes.operators]
+lookup = "/operator/:id"
+all = "/operator/all"
+new = "/operator"
+me = "/operator"
+
+[http.routes.agents]
+lookup = "/agent/:id"
+all = "/agent/all"
+new = "/agent"
+me = "/agent"
+
+[tokens]
+key_path = "ec-private.pem"
+
+[tokens.ttl]
+operators = "01d 00h 00m 00s"
+agents = "30d 00h 00m 00s"
+#

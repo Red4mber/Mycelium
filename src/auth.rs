@@ -3,7 +3,7 @@ use axum::extract::{State, Request};
 use axum::http;
 use axum::response::Response;
 use axum::middleware::Next;
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use jsonwebtoken::errors::ErrorKind;
 use ring::signature::{Ed25519KeyPair, KeyPair};
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::AppState;
+use crate::config::Ttl;
 use crate::error::Error;
 use crate::model::{Claims, TokenType};
 use crate::routes::operator::query_operator_by_id;
@@ -41,17 +42,19 @@ pub fn generate_encryption_keys() -> (EncodingKey, DecodingKey) {
 }
 
 
+
+
 /// Generates a new JWT token
 ///
 /// !!  DOES NOT check for credentials \
 ///     it just generates whatever token you asked for
 ///
 /// Returns a AuthError::TokenCreation if we failed to create a token
-pub fn generate_token(typ: TokenType, id: &Uuid, encoding_key: &EncodingKey) -> Result<String, Error> {
+pub fn generate_token(typ: TokenType, id: &Uuid, encoding_key: &EncodingKey, ttl: Ttl) -> Result<String, Error> {
 	let now = Utc::now();
 	let ttl: chrono::TimeDelta = match typ {
-		TokenType::Agent => Duration::days(60),
-		TokenType::Operator => Duration::hours(24),
+		TokenType::Agent => ttl.agents,
+		TokenType::Operator => ttl.operators,
 	};
 	let claim = Claims {
 		sub: *id,
@@ -108,7 +111,7 @@ pub async fn auth(
 
 	let mut header = auth_header.split_whitespace();
 	let (_bearer, token) = (header.next(), header.next().ok_or(Error::PermissionDenied)?);
-	let claims = validate_token(token, &state.decoding_key)?;
+	let claims = validate_token(token, &state.keys.decoding_key)?;
 
 	let operator = query_operator_by_id(&claims.sub, &state.db).await
 		.map_err(|_| Error::TokenInvalid)?;

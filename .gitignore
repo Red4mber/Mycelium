@@ -2,3 +2,4 @@
 /.env
 /.idea
 /ec-private.pem
+/config.toml

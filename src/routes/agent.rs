@@ -7,25 +7,8 @@ use axum::{
 	Json,
 };
 use serde_json::{json, Value};
-use crate::AppState;
-use crate::error::Error;
+use crate::{error::Error, AppState};
 use crate::model::Agent;
-
-#[allow(non_camel_case_types, unused)]
-enum CPUArch {
-	x86_64, aarch64, ppc64, rv64, i386
-}
-// TODO to be completed
-
-/// Describes the data sent by implants when beaconing back to the team server
-// struct BeaconData {
-// 	pub host: String,
-// 	pub architecture: CPUArch,
-// 	pub usermame: String,
-// 	pub path: String,
-// 	
-// }
-
 
 pub async fn list_all_agents(
 	State(data): State<Arc<AppState>>,

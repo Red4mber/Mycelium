@@ -52,7 +52,7 @@ pub async fn lookup_operator_by_id(
 	State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<Value>)> {
 	let res = sqlx::query_as!(
-	    Operator,
+        Operator,
 	    r#"SELECT * FROM operators WHERE id = $1 LIMIT 1"#,
 	    operator_id
 	).fetch_one(&data.db)
@@ -81,8 +81,8 @@ pub async fn list_all_operators(
 	State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, Error> {
 	let all_operators = sqlx::query_as!(
-	    Operator,
-	    r#"SELECT * FROM operators LIMIT 100"#
+		Operator,
+		r#"SELECT * FROM operators LIMIT 100"#
 	).fetch_all(&data.db)
 	 .await
 	 .map_err(|_| Error::InternalError)?
@@ -125,8 +125,8 @@ pub async fn operator_login(
 	if !verify(sign_in_data.password, &operator.password).unwrap() {
 		return Err(Error::WrongCredentials)
 	};
-
-	let token = generate_token(TokenType::Operator, &operator.id, &state.encoding_key)?;
+	let ttl = &state.cfg.tokens.ttl;
+	let token = generate_token(TokenType::Operator, &operator.id, &state.keys.encoding_key, ttl.clone())?;
 	sqlx::query!("UPDATE operators SET last_login = NOW() WHERE id = $1", operator.id)
 		.execute(&state.db).await.map_err(|_| Error::InternalError)?;
 
