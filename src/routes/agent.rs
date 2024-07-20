@@ -11,8 +11,26 @@ use crate::{
 	error::internal_error
 };
 use crate::model::Agent;
-// TODO Add some authentication or something
-// Just to avoid letting anyone register and lookup an agent, that'd be cool
+
+#[allow(non_camel_case_types, unused)]
+enum CPUArch {
+	x86_64, aarch64, ppc64, rv64, i386
+}
+// TODO to be completed
+
+/// Describes the data sent by implants when beaconing back to the team server
+struct BeaconData {
+	pub host: String,
+	pub architecture: CPUArch,
+	pub usermame: String,
+	pub path: String,
+	
+}
+
+
+
+
+
 
 
 pub async fn list_all_agents(

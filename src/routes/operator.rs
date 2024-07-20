@@ -17,7 +17,7 @@ use crate::{
 	model::{Operator, OperatorPublicInfo, OperatorSignInData}
 };
 use crate::auth::{AuthBody, generate_token};
-use crate::error::{MyceliumError};
+use crate::error::{Error};
 use crate::model::TokenType;
 
 
@@ -52,7 +52,7 @@ pub async fn lookup_operator_by_id(
 	State(data): State<Arc<AppState>>,
 	req: Request
 ) -> Result<impl IntoResponse, (StatusCode, Json<Value>)> {
-	let mut res = sqlx::query_as!(
+	let res = sqlx::query_as!(
 	    Operator,
 	    r#"SELECT * FROM operators WHERE id = $1 LIMIT 1"#,
 	    operator_id
@@ -124,17 +124,17 @@ pub async fn show_current_operator(
 pub async fn operator_login(
 	State(state): State<Arc<AppState>>,
 	Json(sign_in_data): Json<OperatorSignInData>,
-) -> Result<Json<AuthBody>, MyceliumError> {
+) -> Result<Json<AuthBody>, Error> {
 	let operator = sqlx::query_as!(
 	    Operator,
 	    r#"SELECT * FROM operators WHERE email LIKE $1 LIMIT 1"#,
 	    sign_in_data.email
 	).fetch_one(&state.db)
 	 .await
-	 .map_err(|_| MyceliumError::WrongCredentials)?;
+	 .map_err(|_| Error::WrongCredentials)?;
 
 	if !verify(sign_in_data.password, &operator.password).unwrap() {
-		return Err(MyceliumError::WrongCredentials)
+		return Err(Error::WrongCredentials)
 	};
 	
 	let token = generate_token(TokenType::Operator, &operator.id, &state.encoding_key)?;
