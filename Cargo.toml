@@ -18,6 +18,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 bcrypt = "0.15.1"
 jsonwebtoken = "9.3.0"
 ring = "0.17.8"
+thiserror = "1.0.62"
 
 [profile.dev.package.sqlx-macros]
 opt-level = 3

@@ -83,7 +83,7 @@ pub fn validate_token(token: &str, decoding_key: &DecodingKey) -> Result<Claims,
 				ErrorKind::ExpiredSignature => Error::TokenExpired,
 				_ => {
 					tracing::error!("Failed to validate token : {err}");
-					Error::InvalidToken
+					Error::TokenInvalid
 				}
 			})
 		}
@@ -102,16 +102,16 @@ pub async fn auth(
 ) -> Result<Response, Error> {
 	let auth_header = req.headers_mut().get(http::header::AUTHORIZATION);
 	let auth_header = match auth_header {
-		Some(val) => val.to_str().map_err(|_| Error::InvalidAuthHeader)?,
+		Some(val) => val.to_str().map_err(|_| Error::PermissionDenied)?,
 		None => return Err(Error::PermissionDenied),
 	};
 
 	let mut header = auth_header.split_whitespace();
-	let (_bearer, token) = (header.next(), header.next());
-	let claims = validate_token(&token.unwrap().to_string(), &state.decoding_key)?;
+	let (_bearer, token) = (header.next(), header.next().ok_or(Error::PermissionDenied)?);
+	let claims = validate_token(token, &state.decoding_key)?;
 
 	let operator = query_operator_by_id(&claims.sub, &state.db).await
-		.map_err(|_| Error::InvalidToken)?;
+		.map_err(|_| Error::TokenInvalid)?;
 
 	req.extensions_mut().insert(operator);
 	Ok(next.run(req).await)

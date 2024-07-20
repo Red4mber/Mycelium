@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::{Json, Router, routing::{get, post}, response::IntoResponse, middleware};
+use axum::body::Bytes;
 use dotenv::dotenv;
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::{
     routes::agent::{list_all_agents, lookup_agent_by_id},
-    routes::operator::{list_all_operators, lookup_operator_by_id, operator_login, show_current_operator},
+    routes::operator::{create_operator_account, list_all_operators, lookup_operator_by_id, operator_login, show_current_operator},
     auth::{generate_encryption_keys, auth},
 };
 
@@ -72,17 +73,15 @@ async fn main() {
 
     // create routes
     let app = Router::new()
-        // .route("/api/agent", get(list_agents))
-        // .route("/api/operator", post(register_new_operator))
         .route("/agent/:id", get(lookup_agent_by_id))
         .route("/agent/all", get(list_all_agents))
         .route("/operator/all", get(list_all_operators))
-        .route("/operator", get(show_current_operator))
+        .route("/operator", get(show_current_operator).post(create_operator_account))
         .route("/operator/:id", get(lookup_operator_by_id))
-        .layer(middleware::from_fn_with_state(state.clone(), auth)) // All routes above are authenticated
+            // ^ All routes above this are authenticated ^ //
+        .layer(middleware::from_fn_with_state(state.clone(), auth)) 
         .route("/login", post(operator_login))
         .route("/healthcheck", get(health_check_handler).post(ping_handler))
-        // .layer(HandleErrorLayer::new(handle_parsing_error))
         .with_state(state);
 
     // run our app
@@ -107,8 +106,8 @@ pub struct PingParams {
 }
 // Simple Ping endpoint
 pub async fn ping_handler(
-    Json(payload): Json<PingParams>
+    body: Bytes
 ) -> impl IntoResponse {
-    Json(payload)
+    body
 }
 

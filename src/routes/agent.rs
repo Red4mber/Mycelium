@@ -6,10 +6,9 @@ use axum::{
 	http::StatusCode,
 	Json,
 };
-use crate::{
-	AppState,
-	error::internal_error
-};
+use serde_json::{json, Value};
+use crate::AppState;
+use crate::error::Error;
 use crate::model::Agent;
 
 #[allow(non_camel_case_types, unused)]
@@ -19,52 +18,40 @@ enum CPUArch {
 // TODO to be completed
 
 /// Describes the data sent by implants when beaconing back to the team server
-struct BeaconData {
-	pub host: String,
-	pub architecture: CPUArch,
-	pub usermame: String,
-	pub path: String,
-	
-}
-
-
-
-
-
+// struct BeaconData {
+// 	pub host: String,
+// 	pub architecture: CPUArch,
+// 	pub usermame: String,
+// 	pub path: String,
+// 	
+// }
 
 
 pub async fn list_all_agents(
 	State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, Error> {
 	let all_agents = sqlx::query_as!(
 	    Agent,
 	    r#"SELECT * FROM agents LIMIT 200"#
-	).fetch_all(&data.db)
-	 .await
-	 .map_err(internal_error)?;
-
-	let json_response = serde_json::json!({
-        "status": "ok",
-		"result": all_agents
-	});
-	Ok(Json(json_response))
+	).fetch_all(&data.db).await.map_err(|_| Error::InternalError)?;
+	Ok(Json(json!(all_agents)))
 }
 
 pub async fn lookup_agent_by_id(
 	Path(agent_id): Path<Uuid>,
 	State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, (StatusCode, Json<Value>)> {
 	let agent = sqlx::query_as!(
 	    Agent,
 	    r#"SELECT * FROM agents WHERE id = $1 LIMIT 1"#,
 	    agent_id
 	).fetch_one(&data.db)
-	 .await
-	 .map_err(internal_error)?;
-
-	let json_response = serde_json::json!({
-        "status": "ok",
-		"result": agent
-	});
-    Ok(Json(json_response))
+	 .await.map_err(|e| match e {
+		sqlx::error::Error::RowNotFound => (
+			StatusCode::OK,
+			Json(json!({"Result": format!("Agent {agent_id} not found.")}))
+		),
+		_ => Error::InternalError.as_tuple(),
+	})?;
+    Ok(Json(json!(agent)))
 }
