@@ -1,21 +1,22 @@
 use std::sync::Arc;
 use axum::extract::{State, Request};
 use axum::http;
-use axum::http::StatusCode;
 use axum::response::Response;
 use axum::middleware::Next;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
+use jsonwebtoken::errors::ErrorKind;
 use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::AppState;
-use crate::error::{AuthError, AuthErrorType};
-use crate::model::Claims;
+use crate::error::Error;
+use crate::model::{Claims, TokenType};
 use crate::routes::operator::query_operator_by_id;
 
 
+/// Structure containing the authentication data that will be sent after a successful login
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthBody {
 	access_token: String,
@@ -40,88 +41,78 @@ pub fn generate_encryption_keys() -> (EncodingKey, DecodingKey) {
 }
 
 
-/// Generates a new JWT token for the operator
+/// Generates a new JWT token
 ///
-/// !! DOES NOT check for credentials or token validity \
-/// It simply does whatever you ask it to
+/// !!  DOES NOT check for credentials \
+///     it just generates whatever token you asked for
 ///
 /// Returns a AuthError::TokenCreation if we failed to create a token
-pub fn generate_token(id: &Uuid, encoding_key: &EncodingKey) -> Result<String, AuthErrorType> {
+pub fn generate_token(typ: TokenType, id: &Uuid, encoding_key: &EncodingKey) -> Result<String, Error> {
 	let now = Utc::now();
-	let expire: chrono::TimeDelta = Duration::hours(24);
-
+	let ttl: chrono::TimeDelta = match typ {
+		TokenType::Agent => Duration::days(60),
+		TokenType::Operator => Duration::hours(24),
+	};
 	let claim = Claims {
 		sub: *id,
 		iat: now.timestamp() as usize,
-		exp: (now + expire).timestamp() as usize
+		exp: (now + ttl).timestamp() as usize,
+		typ
 	};
-	let token = encode(
+	
+	encode(
 		&Header::new(Algorithm::EdDSA),
 		&claim,
 		encoding_key
-	);
-	token.map_err(|err| {
-		tracing::error!("Failed to generate token : {err}");
-		AuthErrorType::TokenCreation
-	})
+	).map_err(|_| Error::TokenCreation)
 }
 
 /// Validates a JWT token
 ///
 /// returns the JWT payload if the token is valid
 /// and returns a `AuthError::InvalidToken` if the token is invalid
-pub fn validate_token(token: &String, decoding_key: &DecodingKey) -> Result<Claims, AuthErrorType> {
+pub fn validate_token(token: &str, decoding_key: &DecodingKey) -> Result<Claims, Error> {
 	let mut validation = Validation::new(Algorithm::EdDSA);
 	validation.set_required_spec_claims(&["exp", "sub", "iat"]);
 	validation.algorithms = vec![Algorithm::EdDSA];
 
-	match decode::<Claims>(&token, &decoding_key, &validation) {
-		Ok(data) => {
-			Ok(data.claims)
-		}
+	match decode::<Claims>(token, decoding_key, &validation) {
+		Ok(data) => Ok(data.claims),
 		Err(err) => {
-			tracing::error!("Failed to validate token : {err}");
-			Err(AuthErrorType::InvalidToken)
+			Err( match err.kind() {
+				ErrorKind::ExpiredSignature => Error::TokenExpired,
+				_ => {
+					tracing::error!("Failed to validate token : {err}");
+					Error::InvalidToken
+				}
+			})
 		}
 	}
 }
 
 /// JWT Authentication middleware
 /// 
-/// Decodes the current user's token to extract the claims then, 
-/// checks if everything is valid and matches the user info.
-/// 
+/// Reads the `Authorization` HTTP Header to recover the token \
+/// Then validates the token and search for its owner in the database \
+/// If the owner is found and the token is valid, it stores the `Operator` struct in the request's extensions
 pub async fn auth(
 	State(state): State<Arc<AppState>>,
 	mut req: Request,
 	next: Next,
-) -> Result<Response, AuthError> {
+) -> Result<Response, Error> {
 	let auth_header = req.headers_mut().get(http::header::AUTHORIZATION);
 	let auth_header = match auth_header {
-		Some(val) => val.to_str().map_err(|_| AuthError {
-			message: "Failed to read token from the HTTP headers".to_string(),
-			status_code: StatusCode::FORBIDDEN
-		})?,
-		None => return Err(AuthError {
-			message: "Access Denied - Please log in".to_string(),
-			status_code: StatusCode::FORBIDDEN
-		}),
+		Some(val) => val.to_str().map_err(|_| Error::InvalidAuthHeader)?,
+		None => return Err(Error::PermissionDenied),
 	};
+
 	let mut header = auth_header.split_whitespace();
 	let (_bearer, token) = (header.next(), header.next());
-	let operator_id = match validate_token(&token.unwrap().to_string(), &state.decoding_key) {
-		Ok(claims) => { Ok(claims.sub) }
-		Err(_) => return Err(AuthError {
-			message: "Unable to decode token".to_string(),
-			status_code: StatusCode::UNAUTHORIZED
-		})
-	}?;
-	let current_operator = query_operator_by_id(&operator_id, &state.db).await.map_err(
-		|_e| AuthError {
-			message: "You are not authorized to consult this resource".to_string(),
-			status_code: StatusCode::UNAUTHORIZED
-		}
-	);
-	req.extensions_mut().insert(current_operator);
+	let claims = validate_token(&token.unwrap().to_string(), &state.decoding_key)?;
+
+	let operator = query_operator_by_id(&claims.sub, &state.db).await
+		.map_err(|_| Error::InvalidToken)?;
+
+	req.extensions_mut().insert(operator);
 	Ok(next.run(req).await)
 }
