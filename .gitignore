@@ -1,5 +1,6 @@
 /target
 /.env
+/.sqlx
 /.idea
 /ec-private.pem
 /config.toml
