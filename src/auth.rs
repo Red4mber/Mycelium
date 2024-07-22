@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::AppState;
-use crate::config::Ttl;
+use crate::settings::SETTINGS;
 use crate::error::Error;
 use crate::model::{Claims, TokenType};
 use crate::routes::operator::query_operator_by_id;
@@ -50,11 +50,11 @@ pub fn generate_encryption_keys() -> (EncodingKey, DecodingKey) {
 ///     it just generates whatever token you asked for
 ///
 /// Returns a AuthError::TokenCreation if we failed to create a token
-pub fn generate_token(typ: TokenType, id: &Uuid, encoding_key: &EncodingKey, ttl: Ttl) -> Result<String, Error> {
+pub fn generate_token(typ: TokenType, id: &Uuid, encoding_key: &EncodingKey) -> Result<String, Error> {
 	let now = Utc::now();
 	let ttl: chrono::TimeDelta = match typ {
-		TokenType::Agent => ttl.agents,
-		TokenType::Operator => ttl.operators,
+		TokenType::Agent => SETTINGS.tokens.ttl.agents,
+		TokenType::Operator => SETTINGS.tokens.ttl.agents,
 	};
 	let claim = Claims {
 		sub: *id,

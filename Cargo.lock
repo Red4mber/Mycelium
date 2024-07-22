@@ -1065,6 +1065,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "jsonwebtoken",
+ "lazy_static",
  "regex",
  "ring",
  "serde",

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use axum::{Extension, extract::{Path, State}, http::StatusCode, Json, response::IntoResponse};
-use bcrypt::verify;
 use serde_json::{json, Value};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -9,8 +8,7 @@ use uuid::Uuid;
 use crate::{
 	AppState,
 	error::Error,
-	auth::{AuthBody, generate_token},
-	model::{CreateAccountData, OperatorRole, TokenType, Operator, OperatorPublicInfo, SignInData}
+	model::{CreateAccountData, OperatorRole, Operator, OperatorPublicInfo, Agent}
 };
 
 
@@ -105,39 +103,6 @@ pub async fn show_current_operator(
 	Ok(Json(op.clone()))
 }
 
-
-
-/// Handler for the operator login endpoint
-/// 
-/// Accepts the operator email and password as JSON
-pub async fn operator_login(
-	State(state): State<Arc<AppState>>,
-	Json(sign_in_data): Json<SignInData>,
-) -> Result<impl IntoResponse, Error> {
-	let operator = sqlx::query_as!(
-	    Operator,
-	    "SELECT * FROM operators WHERE email LIKE $1 LIMIT 1",
-	    sign_in_data.email
-	).fetch_one(&state.db)
-	 .await
-	 .map_err(|_| Error::WrongCredentials)?;
-
-	if !verify(sign_in_data.password, &operator.password).unwrap() {
-		return Err(Error::WrongCredentials)
-	};
-	let ttl = &state.cfg.tokens.ttl;
-	let token = generate_token(TokenType::Operator, &operator.id, &state.keys.encoding_key, ttl.clone())?;
-	sqlx::query!("UPDATE operators SET last_login = NOW() WHERE id = $1", operator.id)
-		.execute(&state.db).await.map_err(|_| Error::InternalError)?;
-
-	tracing::info!("Operator {} just logged in.", &operator.name);
-	Ok((
-		[("Authorization", format!("Bearer {token}"))], 
-		Json(AuthBody::new(token))
-	))
-}
-
-
 /// This route allows the creation of new operator accounts : `POST /operator` \
 /// This function will check that the account creating the new operator is not a guest
 pub async fn create_operator_account(
@@ -166,4 +131,35 @@ pub async fn create_operator_account(
 	Ok(Json(json!({
 		"Result": format!("Account {} was created successfully", new_op.name)
 	})))
+}
+
+
+
+pub async fn list_all_agents(
+	State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, Error> {
+	let all_agents = sqlx::query_as!(
+	    Agent,
+	    r#"SELECT * FROM agents LIMIT 200"#
+	).fetch_all(&data.db).await.map_err(|_| Error::InternalError)?;
+	Ok(Json(json!(all_agents)))
+}
+
+pub async fn lookup_agent_by_id(
+	Path(agent_id): Path<Uuid>,
+	State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<Value>)> {
+	let agent = sqlx::query_as!(
+	    Agent,
+	    r#"SELECT * FROM agents WHERE id = $1 LIMIT 1"#,
+	    agent_id
+	).fetch_one(&data.db)
+	 .await.map_err(|e| match e {
+		sqlx::error::Error::RowNotFound => (
+			StatusCode::OK,
+			Json(json!({"Result": format!("Agent {agent_id} not found.")}))
+		),
+		_ => Error::InternalError.as_tuple(),
+	})?;
+	Ok(Json(json!(agent)))
 }
