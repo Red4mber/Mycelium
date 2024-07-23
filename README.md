@@ -41,13 +41,14 @@ The initial build may take 1-2 minutes. Once complete, the server will be availa
 
 ## API Documentation
 
-[![Run in Postman](https://run.pstmn.io/button.svg)](https://god.gw.postman.com/run-collection/37113998-de34f7fc-c4f1-493e-b835-4a2ab3d4298c?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D37113998-de34f7fc-c4f1-493e-b835-4a2ab3d4298c%26entityType%3Dcollection%26workspaceId%3D8aee9eed-9f7c-4150-aca2-844b29f39ac7)
+Here is the latest export in markdown : [API_README.md](./API_README.md) \
+I'll try to make exports as often as possible but it still might be outdated.
 
+Took me what felt like years, but i finally cleaned Postman from everything it considers "private" so i can finally publish the documentation online.\
+> Online API documentation : 
+> https://documenter.getpostman.com/view/37113998/2sA3kXCzjz
 
-The documentation is only valid with the configuration provided. If you change the endpoints in your own installation, i suggest forking the postman collection to make your own documentation.
-
-Some endpoints are still missing from the documentation, such as `/beacon`. See [settings.toml](settings.toml) to see all the endpoints.
-
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://god.gw.postman.com/run-collection/37113998-034e0471-7c27-49a1-bcbf-df7905ac0989?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D37113998-034e0471-7c27-49a1-bcbf-df7905ac0989%26entityType%3Dcollection%26workspaceId%3D8786ad64-fd37-4dcc-a897-dc9fefa82077#?env%5BPublic%5D=W3sia2V5IjoicGFzc3dvcmQiLCJ2YWx1ZSI6IiIsImVuYWJsZWQiOnRydWUsInR5cGUiOiJzZWNyZXQifSx7ImtleSI6ImFjY2Vzc1Rva2VuIiwidmFsdWUiOiIiLCJlbmFibGVkIjp0cnVlLCJ0eXBlIjoiYW55In0seyJrZXkiOiJmaWxlbmFtZSIsInZhbHVlIjoiaW1hZ2UuanBnIiwiZW5hYmxlZCI6dHJ1ZX1d)
 
 ## Authentication
 

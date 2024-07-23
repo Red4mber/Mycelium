@@ -1,22 +1,30 @@
+mod upload;
+
+
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
-use axum::{http, Json, middleware, Router};
-use axum::extract::{ConnectInfo, Request, State};
-use axum::http::StatusCode;
-use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
-use axum::routing::post;
+use axum::{
+	Json, Router,
+	extract::{ConnectInfo, Request, State},
+	http::{self, StatusCode},
+	middleware::{self, Next},
+	response::{IntoResponse, Response},
+	routing::post
+};
 use serde_json::{json, Value};
 use tokio_postgres::Client;
 // use sqlx::PgPool;
 use uuid::Uuid;
 
 
-use crate::model::agent::BeaconData;
 use crate::AppState;
 use crate::error::Error;
-use crate::model::db::Agent;
+use crate::model::{
+	db::Agent,
+	agent::BeaconData
+};
+use crate::routes::agents::upload::upload_handler;
 use crate::settings::SETTINGS;
 
 // TODO => Need consistency - Is it Implants or Agents ?
@@ -26,17 +34,21 @@ use crate::settings::SETTINGS;
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 	let r = &SETTINGS.http.routes;
 	Router::new()
-		.route(&r.agent.beacon, post(beacon))
+		.route(&r.agent.beacon, post(beacon_handler))
+		.route(&r.agent.upload, post(upload_handler))
 		.layer(middleware::from_fn_with_state(app_state.clone(), agent_middleware))
 		.with_state(app_state)
 }
 
-pub async fn beacon(
+
+// TODO Make it better
+pub async fn beacon_handler(
 	Json(beacon_data): Json<BeaconData>
 ) -> Result<impl IntoResponse, Error> {
 	tracing::debug!("An agent just connected to beacon endpoint :\n{beacon_data:#?}");
 	Ok(Json(json!({})))
 }
+
 
 
 /// This is the middleware that authenticates agents
@@ -48,14 +60,16 @@ pub async fn agent_middleware(
 ) -> Result<Response, Error> {
 	let auth_header = req.headers_mut().get(http::header::AUTHORIZATION);
 	let auth_header = match auth_header {
-		Some(val) => val.to_str().map_err(|_| log_err(addr))?,
-		None => return Err(log_err(addr)),
+		Some(val) => val.to_str().map_err(|_| log_attempt(addr))?,
+		None => return Err(log_attempt(addr)),
 	};
 	let mut header = auth_header.split_whitespace();
-	let str_uuid = header.next().ok_or_else(|| log_err(addr))?;
-	let uuid = Uuid::from_str(str_uuid).map_err(|_| log_err(addr))?;
+	let str_uuid = header.next().ok_or_else(|| log_attempt(addr))?;
+	let uuid = Uuid::from_str(str_uuid).map_err(|_| log_attempt(addr))?;
 
-	let agent_data = query_agent_by_id(&uuid, &state.db).await;
+	let agent_data = query_agent_by_id(&uuid, &state.db)
+		.await
+	    .map_err(|_| log_attempt(addr))?;
 
 	//  TODO Find a better way to authenticate implants
 	//
@@ -75,7 +89,7 @@ pub async fn agent_middleware(
 
 /// Small function that always returns [Error::PermissionDenied]
 /// but it logs the invalid request for future inspection
-fn log_err(addr: SocketAddr) -> Error {
+fn log_attempt(addr: SocketAddr) -> Error {
 	tracing::error!("Invalid request from {addr} on agent endpoints ! Check the logs ASAP !");
 	Error::PermissionDenied
 }
@@ -89,7 +103,7 @@ pub async fn query_agent_by_id(
 ) -> Result<Agent, (StatusCode, Json<Value>)> {
 	let result = db.query_opt("SELECT * FROM agents WHERE id = $1 LIMIT 1", &[&agent_id])
 	               .await
-	               .map_err(|_| Error::InternalError.as_tuple())?;
+	               .map_err(|_| Error::InternalError.as_tuple_json())?;
 
 	match result {
 		Some(row) => Ok(Agent::from(row)),

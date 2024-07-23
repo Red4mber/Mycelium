@@ -20,6 +20,7 @@ pub struct Settings {
     pub database: Database,
     pub http: Http,
     pub tokens: Tokens,
+    pub misc: Misc,
 }
 
 impl Settings {
@@ -54,7 +55,7 @@ pub struct Database {
 impl Database {
     pub fn url(&self) -> String {
         format!(
-            "postgres://{}:{}@{}/{}?connect_timeout=10&application_name=MyceliumAPI",
+            "postgres://{}:{}@{}/{}",
             self.username, self.password, self.host, self.db_name
         )
     }
@@ -94,6 +95,7 @@ pub struct AuthenticatedRoutes {
     pub lookup_operator: String,
     pub all_operators: String,
     pub new_operator: String,
+    pub del_operator: String,
     pub who_am_i: String,
     pub lookup_agent: String,
     pub all_agents: String,
@@ -103,6 +105,7 @@ pub struct AuthenticatedRoutes {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AgentRoutes {
     pub beacon: String,
+    pub upload: String,
 }
 
 
@@ -117,6 +120,14 @@ pub struct Tokens {
     pub ttl: Duration
 }
 
+/// All the settings that didn't fit anywhere else
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Misc {
+    pub uploads_dir: String,
+}
+
+// Above this line are the structs representing Mycelium's settings
+// Underneath here are the utility functions used to parse settings
 
 
 /// Custom deserializer for TTL duration
@@ -137,8 +148,8 @@ where
     serializer.serialize_str(&formatted)
 }
 
-// Utility function to parse a string like (`05d 08h 04m 02s`)
-// into a TimeDelta (alias of Duration)
+/// Utility function to parse a string like (`05d 08h 04m 02s`)
+/// into a TimeDelta (alias of Duration)
 pub fn parse_time_delta(input: &str) -> Result<Duration, String> {
     let unit_map = HashMap::from([
         ("s", 1),
@@ -166,8 +177,8 @@ pub fn parse_time_delta(input: &str) -> Result<Duration, String> {
     Ok(Duration::seconds(total_seconds))
 }
 
-// Same as above, just the other way around
-// i don't even know why i write these myself...
+/// Same as above, just the other way around
+/// i don't even know why i write these myself...
 pub fn format_duration(duration: Duration) -> String {
     let total_seconds = duration.num_seconds();
     let days = total_seconds / 86400;

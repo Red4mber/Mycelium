@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS agents (
 	notes TEXT
 );
 
-INSERT INTO agents (id, first_ping, last_ping, host_id, operator_id, notes) VALUES ('51d10216-2daf-41eb-a9ca-a8da3a3cc924', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000', 'Test agent added manually');
+INSERT INTO agents (id, first_ping, last_ping, host_id, operator_id, notes) VALUES ('51d10216-2daf-41eb-a9ca-a8da3a3cc924', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'c6fb70b3-6d40-47ed-920c-1f205bc0f232', '15a374ef-0eda-4f01-9e2a-e1505ba60ed1', 'Test agent for debug purposes');
 
 -- CREATING OPERATORS TABLE --
 
@@ -62,5 +62,11 @@ CREATE TABLE IF NOT EXISTS hosts (
 INSERT INTO hosts (id, agent, hostname, os, known_users, external_ip, processor_number, processor_id, userdomain, notes) 
 VALUES ('c6fb70b3-6d40-47ed-920c-1f205bc0f232', '51d10216-2daf-41eb-a9ca-a8da3a3cc924', 'DESKTOP-F4K3PC', 'Win11 24H2', ARRAY ['Administrator', 'Melusine'], INET '129.64.112.197', 4, 'x86 Family 15 Model 2 Stepping 9, GenuineIntel', 'DESKTOP-DEADPC', 'Fake host with dummy info, added to test database');
 
+-- CREATING HOSTS TABLE --
 
--- c6fb70b3-6d40-47ed-920c-1f205bc0f232
+CREATE TABLE IF NOT EXISTS files (
+	id UUID NOT NULL PRIMARY KEY,
+	host_id UUID NOT NULL,
+	filename VARCHAR(255) NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+)

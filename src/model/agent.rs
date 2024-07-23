@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 /// 
 /// Everything can be read from the PEB/TEB with no API calls to windows
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub(crate) struct BeaconData {
-	hostname: String,
-	username: String,
-	tmpdir: String,
-	appdata: String,
-	windir: String,
-	cwd: String,
-	cmdline: String,
-	pid: u64,
-	env: Vec<String>,
+pub struct BeaconData {
+	pub hostname: String,
+	pub username: String,
+	pub tmpdir: String,
+	pub appdata: String,
+	pub windir: String,
+	pub cwd: String,
+	pub cmdline: String,
+	pub pid: u64,
+	pub env: Vec<String>,
 }

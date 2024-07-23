@@ -1,7 +1,6 @@
 
 // These structures all describe tables in the database
 
-use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use tokio_postgres::types::{FromSql, ToSql};
@@ -15,8 +14,8 @@ pub struct Agent {
 	pub id: Uuid,
 	pub first_ping: chrono::DateTime<chrono::Utc>,
 	pub last_ping: chrono::DateTime<chrono::Utc>,
-	pub address: IpAddr,
-	pub operator: Uuid,
+	pub host_id: Uuid,
+	pub operator_id: Uuid,
 	pub notes: Option<String>,
 }
 impl From<Row> for Agent {
@@ -25,8 +24,8 @@ impl From<Row> for Agent {
 			id: row.get("id"),
 			first_ping: row.get("first_ping"),
 			last_ping: row.get("last_ping"),
-			address: row.get("address"),
-			operator: row.get("operator"),
+			host_id: row.get("host_id"),
+			operator_id: row.get("operator_id"),
 			notes: row.get("notes")
 		}
 	}

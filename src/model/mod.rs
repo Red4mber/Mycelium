@@ -7,7 +7,7 @@ use crate::model::db::OperatorRole;
 
 
 pub mod db;
-pub(crate) mod agent;
+pub mod agent;
 
 
 /// Stores the keys used to encode and decodes JWTs inside the AppState
