@@ -1,6 +1,6 @@
 
 [tracing]
-env_filter = "mycelium=debug"
+env_filter = "mycelium-api=trace,mycelium=trace,tower_http=debug"
 
 [database]
 host = "localhost"
@@ -18,21 +18,17 @@ ping = "/healthcheck"
 healthcheck = "/healthcheck"
 
 [http.routes.operators]
-lookup = "/operator/:id"
-all = "/operator/all"
-new = "/operator"
-me = "/operator"
+lookup_operator = "/operator/:id"
+all_operators = "/operator/all"
+new_operator = "/operator"
+who_am_i = "/operator"
+lookup_agent = "/agent/:id"
+all_agents = "/agent/all"
 
-[http.routes.agents]
-lookup = "/agent/:id"
-all = "/agent/all"
-new = "/agent"
-me = "/agent"
+[http.routes.implant]
+beacon = "/beacon"
 
 [tokens]
-key_path = "ec-private.pem"
+key_path = "ec-private.pem" # Useless so far - Not used to generate keys
+ttl = "01d 00h 00m 00s"
 
-[tokens.ttl]
-operators = "01d 00h 00m 00s"
-agents = "30d 00h 00m 00s"
-#

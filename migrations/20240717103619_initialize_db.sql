@@ -1,4 +1,5 @@
--- Add migration script here
+-- MIGRATION SCRIPT ONLY FOR TESTING / DEV ENVIRONMENT
+-- Do not use this on an actual server
 
 -- CREATING AGENTS TABLE --
 
@@ -11,7 +12,7 @@ CREATE TABLE IF NOT EXISTS agents (
   notes TEXT
 );
 
-INSERT INTO agents VALUES (gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, inet '127.0.0.1', '00000000-0000-0000-0000-000000000000', 'Test agent added manually');
+INSERT INTO agents VALUES ('51d10216-2daf-41eb-a9ca-a8da3a3cc924', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, inet '127.0.0.1', '00000000-0000-0000-0000-000000000000', 'Test agent added manually');
 
 -- CREATING OPERATORS TABLE --
 
@@ -31,9 +32,9 @@ CREATE TABLE IF NOT EXISTS operators (
     );
 CREATE INDEX operators_email_idx ON operators (email);
 
-INSERT INTO operators (name, email, password, created_by, role) VALUES ('Melusine', 'melusine@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 2);
-INSERT INTO operators (name, email, password, created_by, role) VALUES ('Operator', 'operator@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 1);
-INSERT INTO operators (name, email, password, created_by, role) VALUES ('Operator', 'operator2@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 1);
-INSERT INTO operators (name, email, password, created_by, role) VALUES ('Guest', 'guest@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 0);
-INSERT INTO operators (name, email, password, created_by, role) VALUES ('Guest', 'guest2@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 0);
+INSERT INTO operators (id, name, email, password, created_by, role) VALUES ("15a374ef-0eda-4f01-9e2a-e1505ba60ed1", 'Melusine', 'melusine@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 2);
+--INSERT INTO operators (name, email, password, created_by, role) VALUES ('Operator', 'operator@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 1);
+--INSERT INTO operators (name, email, password, created_by, role) VALUES ('Operator', 'operator2@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 1);
+--INSERT INTO operators (name, email, password, created_by, role) VALUES ('Guest', 'guest@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 0);
+--INSERT INTO operators (name, email, password, created_by, role) VALUES ('Guest', 'guest2@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 0);
 
