@@ -3,4 +3,4 @@
 /.sqlx
 /.idea
 /ec-private.pem
-/config.toml
+/settings.toml

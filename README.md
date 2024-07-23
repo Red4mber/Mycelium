@@ -17,3 +17,5 @@ THERE IS NO GUI YET. All interactions with the server is done via the API.
 
 I'm working on writing documentation for the API using Postman, it should be coming soon :)
 
+
+ 

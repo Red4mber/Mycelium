@@ -29,6 +29,6 @@ all_agents = "/agent/all"
 beacon = "/beacon"
 
 [tokens]
-key_path = "ec-private.pem" # Useless so far - Not used to generate keys
+#key_path = "ec-private.pem" # Useless so far - Not used to generate keys but will be later
 ttl = "01d 00h 00m 00s"
 
