@@ -41,14 +41,16 @@ The initial build may take 1-2 minutes. Once complete, the server will be availa
 
 ## API Documentation
 
-Here is the latest export in markdown : [API_README.md](./API_README.md) \
-I'll try to make exports as often as possible but it still might be outdated.
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://god.gw.postman.com/run-collection/37113998-034e0471-7c27-49a1-bcbf-df7905ac0989?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D37113998-034e0471-7c27-49a1-bcbf-df7905ac0989%26entityType%3Dcollection%26workspaceId%3D8786ad64-fd37-4dcc-a897-dc9fefa82077#?env%5BPublic%5D=W3sia2V5IjoicGFzc3dvcmQiLCJ2YWx1ZSI6IiIsImVuYWJsZWQiOnRydWUsInR5cGUiOiJzZWNyZXQifSx7ImtleSI6ImFjY2Vzc1Rva2VuIiwidmFsdWUiOiIiLCJlbmFibGVkIjp0cnVlLCJ0eXBlIjoiYW55In0seyJrZXkiOiJmaWxlbmFtZSIsInZhbHVlIjoiaW1hZ2UuanBnIiwiZW5hYmxlZCI6dHJ1ZX1d)
 
 Took me what felt like years, but i finally cleaned Postman from everything it considers "private" so i can finally publish the documentation online.\
 > Online API documentation : 
 > https://documenter.getpostman.com/view/37113998/2sA3kXCzjz
 
-[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://god.gw.postman.com/run-collection/37113998-034e0471-7c27-49a1-bcbf-df7905ac0989?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D37113998-034e0471-7c27-49a1-bcbf-df7905ac0989%26entityType%3Dcollection%26workspaceId%3D8786ad64-fd37-4dcc-a897-dc9fefa82077#?env%5BPublic%5D=W3sia2V5IjoicGFzc3dvcmQiLCJ2YWx1ZSI6IiIsImVuYWJsZWQiOnRydWUsInR5cGUiOiJzZWNyZXQifSx7ImtleSI6ImFjY2Vzc1Rva2VuIiwidmFsdWUiOiIiLCJlbmFibGVkIjp0cnVlLCJ0eXBlIjoiYW55In0seyJrZXkiOiJmaWxlbmFtZSIsInZhbHVlIjoiaW1hZ2UuanBnIiwiZW5hYmxlZCI6dHJ1ZX1d)
+
+Here is the latest export in markdown : [API_README.md](./API_README.md) \
+I'll try to make exports as often as possible but it still might be outdated.
+
 
 ## Authentication
 
