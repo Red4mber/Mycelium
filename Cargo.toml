@@ -12,7 +12,6 @@ name = "mycelium-api"
 path = "src/bin.rs"
 
 
-
 [dependencies]
 dotenv = "0.15.0"
 uuid = { version = "1.10.0", features = ["v7", "serde"] }
@@ -20,7 +19,6 @@ axum = { version = "0.7.5", features = ["json", "query"] }
 axum-macros = "0.4.1"
 tokio = { version = "1.38.1", features = ["full"] }
 serde = { version = "1.0.204", features = ["derive"] }
-sqlx = { version = "0.7", features = [ "runtime-tokio", "postgres", "macros", "uuid", "chrono", "ipnetwork", "_unstable-all-types"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "ansi"] }
 tracing = { version = "0.1.40", features = [] }
 serde_json = "1.0.120"
@@ -32,9 +30,7 @@ thiserror = "1.0.62"
 regex = "1.10.5"
 toml = "0.8.15"
 lazy_static = "1.5.0"
+tokio-postgres = { version = "0.7.11", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
+postgres-types = { version = "0.2.7", features = ["derive"] }
 
-
-# Uncomment it if you hate yourself
-#[profile.dev.package.sqlx-macros]
-#opt-level = 3
 

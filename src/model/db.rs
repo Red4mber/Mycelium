@@ -1,13 +1,13 @@
 
 // These structures all describe tables in the database
 
+use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
-use sqlx::types::ipnetwork::IpNetwork;
+use tokio_postgres::Row;
+use tokio_postgres::types::{FromSql, ToSql};
 use uuid::Uuid;
 
-
-use crate::model::{OperatorPublicInfo, OperatorRole};
-
+use crate::model::OperatorPublicInfo;
 
 /// Describes a row in the `agents` table in the database
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -15,14 +15,37 @@ pub struct Agent {
 	pub id: Uuid,
 	pub first_ping: chrono::DateTime<chrono::Utc>,
 	pub last_ping: chrono::DateTime<chrono::Utc>,
-	pub address: IpNetwork,
+	pub address: IpAddr,
 	pub operator: Uuid,
 	pub notes: Option<String>,
 }
+impl From<Row> for Agent {
+	fn from(row: Row) -> Self {
+		Self {
+			id: row.get("id"),
+			first_ping: row.get("first_ping"),
+			last_ping: row.get("last_ping"),
+			address: row.get("address"),
+			operator: row.get("operator"),
+			notes: row.get("notes")
+		}
+	}
+}
 
 
+/// Describes the different roles an Operator account can be.
+#[derive(FromSql, ToSql, Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[postgres(name = "operator_role")]
+pub enum OperatorRole {
+	#[postgres(name = "admin")]
+	Admin,
+	#[postgres(name = "operator")]
+	Operator,
+	#[postgres(name = "guest")]
+	Guest,
+}
 /// Describes a row in the `operators` table in the database
-#[derive(Debug, Deserialize, sqlx::FromRow, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Operator {
 	pub id: Uuid,
 	pub name: String,
@@ -45,3 +68,18 @@ impl Operator {
 		}
 	}
 }
+impl From<Row> for Operator {
+	fn from(row: Row) -> Self {
+		Self {
+			id: row.get("id"),
+			name: row.get("name"),
+			email: row.get("email"),
+			password: row.get("password"),
+			role: row.get("role"),
+			created_by: row.get("created_by"),
+			created_at: row.get("created_at"),
+			last_login: row.get("last_login")
+		}
+	}
+}
+

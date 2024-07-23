@@ -8,40 +8,39 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use serde_json::{json, Value};
-use sqlx::PgPool;
+use tokio_postgres::Client;
+// use sqlx::PgPool;
 use uuid::Uuid;
 
 
-use crate::model::{BeaconData, db};
+use crate::model::agent::BeaconData;
 use crate::AppState;
 use crate::error::Error;
+use crate::model::db::Agent;
 use crate::settings::SETTINGS;
 
-
-// TODO => PICK A SIDE - Is it Implants or Agents ?
-
+// TODO => Need consistency - Is it Implants or Agents ?
+//          IT'S AGENT 
+//
 
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 	let r = &SETTINGS.http.routes;
 	Router::new()
-		.route(&r.implant.beacon, post(beacon))
-
-		.layer(middleware::from_fn_with_state(app_state.clone(), implant_middleware))
+		.route(&r.agent.beacon, post(beacon))
+		.layer(middleware::from_fn_with_state(app_state.clone(), agent_middleware))
 		.with_state(app_state)
 }
 
 pub async fn beacon(
-	// Extension(op): Extension<Operator>,
 	Json(beacon_data): Json<BeaconData>
 ) -> Result<impl IntoResponse, Error> {
-	tracing::debug!("An implant just connected to the server !");
-	tracing::debug!("\n{beacon_data:#?}");
+	tracing::debug!("An agent just connected to beacon endpoint :\n{beacon_data:#?}");
 	Ok(Json(json!({})))
 }
 
 
-
-pub async fn implant_middleware(
+/// This is the middleware that authenticates agents
+pub async fn agent_middleware(
 	State(state): State<Arc<AppState>>,
 	ConnectInfo(addr): ConnectInfo<SocketAddr>,
 	mut req: Request,
@@ -56,7 +55,7 @@ pub async fn implant_middleware(
 	let str_uuid = header.next().ok_or_else(|| log_err(addr))?;
 	let uuid = Uuid::from_str(str_uuid).map_err(|_| log_err(addr))?;
 
-	let implant_data = query_implant_by_id(&uuid, &state.db).await;
+	let agent_data = query_agent_by_id(&uuid, &state.db).await;
 
 	//  TODO Find a better way to authenticate implants
 	//
@@ -70,39 +69,33 @@ pub async fn implant_middleware(
 	//  This method is channel agnostic - not relying on a specific communication channel and should
 	//  still work when using different ways of beaconing back to C2
 
-	req.extensions_mut().insert(implant_data);
+	req.extensions_mut().insert(agent_data);
 	Ok(next.run(req).await)
 }
-
-
 
 /// Small function that always returns [Error::PermissionDenied]
 /// but it logs the invalid request for future inspection
 fn log_err(addr: SocketAddr) -> Error {
-	tracing::error!("Invalid request from {addr} on implant endpoints ! Check the logs ASAP !");
+	tracing::error!("Invalid request from {addr} on agent endpoints ! Check the logs ASAP !");
 	Error::PermissionDenied
 }
 
 
 
-/// Utility function that searches for an implant using its UUID
-pub async fn query_implant_by_id(
-	implant_id: &Uuid,
-	db: &PgPool,
-) -> Result<db::Agent, (StatusCode, Json<Value>)> {
-	let implant_data = sqlx::query_as!(
-        db::Agent,
-        r#"SELECT * FROM agents WHERE id = $1 LIMIT 1"#,
-        implant_id
-    )
-		.fetch_one(db)
-		.await
-		.map_err(|e| match e {
-			sqlx::error::Error::RowNotFound => (
-				StatusCode::OK,
-				Json(json!({"Result": format!("Implant {implant_id} not found.")})),
-			),
-			_ => Error::InternalError.as_tuple(),
-		})?;
-	Ok(implant_data)
+/// Utility function that searches for an agent using its UUID
+pub async fn query_agent_by_id(
+	agent_id: &Uuid,
+	db: &Client,
+) -> Result<Agent, (StatusCode, Json<Value>)> {
+	let result = db.query_opt("SELECT * FROM agents WHERE id = $1 LIMIT 1", &[&agent_id])
+	               .await
+	               .map_err(|_| Error::InternalError.as_tuple())?;
+
+	match result {
+		Some(row) => Ok(Agent::from(row)),
+		None => {
+			Err(( StatusCode::OK, Json(json!({"Result": format!("Agent {agent_id} not found.")})) ))
+		}
+	}
 }
+

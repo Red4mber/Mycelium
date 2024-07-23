@@ -46,15 +46,15 @@ pub struct Tracing {
 /// Settings related to the Postgresql Database
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Database {
-    host: String,
-    username: String,
-    password: String,
-    db_name: String,
+    pub host: String,
+    pub username: String,
+    pub password: String,
+    pub db_name: String,
 }
 impl Database {
     pub fn url(&self) -> String {
         format!(
-            "postgres://{}:{}@{}/{}",
+            "postgres://{}:{}@{}/{}?connect_timeout=10&application_name=MyceliumAPI",
             self.username, self.password, self.host, self.db_name
         )
     }
@@ -77,7 +77,7 @@ pub struct Listener {
 pub struct Routes {
     pub unauthenticated: UnauthenticatedRoutes,
     pub operators: AuthenticatedRoutes,
-    pub implant: ImplantRoutes,
+    pub agent: AgentRoutes,
 }
 
 /// The login route and the debug routes
@@ -101,7 +101,7 @@ pub struct AuthenticatedRoutes {
 
 /// All these routes are meant for implants communicating with the server via HTTP
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ImplantRoutes {
+pub struct AgentRoutes {
     pub beacon: String,
 }
 

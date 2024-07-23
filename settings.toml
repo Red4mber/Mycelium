@@ -3,9 +3,9 @@
 env_filter = "mycelium-api=trace,mycelium=trace,tower_http=debug"
 
 [database]
-host = "localhost"
-username = "postgres"
-password = "your database password"
+host = "postgres"
+username = "pguser"
+password = "pgpassword"#"Mycelium_is_a_root_like_structure"
 db_name = "mycelium"
 
 [http.listener]
@@ -25,7 +25,7 @@ who_am_i = "/operator"
 lookup_agent = "/agent/:id"
 all_agents = "/agent/all"
 
-[http.routes.implant]
+[http.routes.agent]
 beacon = "/beacon"
 
 [tokens]

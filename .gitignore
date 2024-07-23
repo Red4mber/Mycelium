@@ -1,6 +1,6 @@
-/target
+/target/
+*/target/
 /.env
 /.sqlx
 /.idea
-/ec-private.pem
-/settings.toml
+/.vscode

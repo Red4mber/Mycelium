@@ -45,27 +45,19 @@ pub async fn operator_login(
     State(state): State<Arc<AppState>>,
     Json(sign_in_data): Json<SignInData>,
 ) -> Result<impl IntoResponse, Error> {
-    let operator = sqlx::query_as!(
-        Operator,
-        "SELECT * FROM operators WHERE email LIKE $1 LIMIT 1",
-        sign_in_data.email
-    )
-    .fetch_one(&state.db)
-    .await
-    .map_err(|_| Error::WrongCredentials)?;
-
+    let result = state.db
+        .query_one("SELECT * FROM operators WHERE email = $1 LIMIT 1", &[&sign_in_data.email])
+        .await.map_err(|_| Error::WrongCredentials)?;
+    let operator = Operator::from(result);
+    
     if !bcrypt::verify(sign_in_data.password, &operator.password).unwrap() {
         return Err(Error::WrongCredentials);
     };
     let token = generate_token(&operator.id, &state.operator_keys.encoding_key)?;
-    sqlx::query!(
-        "UPDATE operators SET last_login = NOW() WHERE id = $1",
-        operator.id
-    )
-    .execute(&state.db)
-    .await
-    .map_err(|_| Error::InternalError)?;
-
+    
+    state.db
+          .execute("UPDATE operators SET last_login = NOW() WHERE id = $1", &[&operator.id])
+          .await.map_err(|_| Error::InternalError)?;
     tracing::info!("Operator {} just logged in.", &operator.name);
     Ok((
         [("Authorization", format!("Bearer {token}"))],
