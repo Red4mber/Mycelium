@@ -8,27 +8,27 @@ use rsa::traits::PublicKeyParts;
 
 /// JSON Web Key (JWK)
 ///
-/// Represents a cryptographic key. 
+/// Represents a cryptographic key.
 /// The fields of the structure represent properties of the key, including its value.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Jwk {
+pub struct Jwk {
 	/// The family of cryptographic algorithms used with the key.
-	kty: String,
+	pub kty: String,
 	/// Encryption Algorithm
-	alg: String,
+	pub alg: String,
 	/// The modulus for the RSA public key.
-	n: String,
+	pub n: String,
 	/// The exponent for the RSA public key.
-	e: String,
+	pub e: String,
 	/// The unique identifier for the key.
-	kid: String,
+	pub kid: String,
 	/// Optional field. Identifies the intended use of the public key.
 	#[serde(skip_serializing_if = "Option::is_none", rename="use")]
-	use_: Option<String>,
+	pub use_: Option<String>,
 }
 
 /// JSON Web Key Set (JWKS)
-/// 
+///
 /// Represents a set of JWKs
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JwkSet {
@@ -42,7 +42,7 @@ impl Display for JwkSet {
 	}
 }
 
-/// Generates a Public/Private key pair.  
+/// Generates a Public/Private key pair.
 fn generate_rsa_key_pair(bits: usize) -> (RsaPrivateKey, RsaPublicKey) {
 	let mut rng = OsRng;
 	let private_key = RsaPrivateKey::new(&mut rng, bits).expect("Failed to generate private key");
@@ -69,10 +69,10 @@ fn rsa_public_key_to_jwk(public_key: &RsaPublicKey, kid: &str) -> Jwk {
 pub fn generate_jwkset() -> (JwkSet, Vec<RsaPrivateKey>) {
 	let (private_key1, public_key1) = generate_rsa_key_pair(2048);
 	let (private_key2, public_key2) = generate_rsa_key_pair(2048);
-	
+
 	let jwk1 = rsa_public_key_to_jwk(&public_key1, "key1");
 	let jwk2 = rsa_public_key_to_jwk(&public_key2, "key2");
-	
+
 	let jwks = JwkSet { keys: vec![jwk1, jwk2] };
 	let priv_keys = vec![private_key1, private_key2];
 	(jwks, priv_keys)

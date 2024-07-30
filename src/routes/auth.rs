@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::time::SystemTime;
 use axum::extract::State;
 use axum::{Json, Router};
 use axum::response::IntoResponse;
@@ -50,25 +49,25 @@ pub async fn jwks_handler(state: State<Arc<AppState>>) -> impl IntoResponse {
 	Json(&state.jwks).into_response()
 }
 
-pub async fn token_handler(state: State<Arc<AppState>>) -> impl IntoResponse {
-	let token = "";
+pub async fn token_handler(_state: State<Arc<AppState>>) -> impl IntoResponse {
+	let _token = "";
 	let mut header = Header::new(Algorithm::RS256);
 	header.kid = Some("key1".to_string());
 	let claims = Claims {
 		iat: Some(Utc::now().timestamp()),
 		nbf: Some(Utc::now().timestamp()),
-		exp: Some((Utc::now() + &CFG.jwt.ttl).timestamp()),
+		exp: Some((Utc::now() + CFG.jwt.ttl).timestamp()),
 		jti: Some(Uuid::now_v7().to_string()),
-		iss: Some(&CFG.jwt.iss),
 		id:  Some("operator:john".to_string()),
-		ns:  Some(&CFG.db.ns),
-		db:  Some(&CFG.db.db),
+		iss: Some((&CFG.jwt.iss).to_string()),
+		ns:  Some((&CFG.db.ns).to_string()),
+		db:  Some((&CFG.db.db).to_string()),
 		ac:  Some("operator".to_string()),
 		rl:  None,
 	};
 
 	Json(serde_json::json!({
-        "token": token,
+        "token": claims,
     }))
 
 }

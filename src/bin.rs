@@ -7,7 +7,6 @@ use tracing_subscriber::{
 };
 use surrealdb::{
     engine::any,
-    engine::any::Any,
     opt::auth::Root
 };
 use tracing::info;
@@ -35,8 +34,8 @@ async fn main() -> Result<(), Error> {
     }).await.map_err(Error::DatabaseError)?;
     
     // Prepare the state of the application
-    let (jwks, private_keys) = authentication::jwks::generate_jwkset().unwrap();
-    let app_state = Arc::new(AppState { db: db_client, jwks });
+    let (jwks, keys) = authentication::jwks::generate_jwkset();
+    let app_state = Arc::new(AppState { db: db_client, jwks, keys });
     
     // Fetches routes from our different routers and merges them in a single one
     let app = Router::new()

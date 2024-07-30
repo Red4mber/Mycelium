@@ -1,5 +1,7 @@
 mod records;
 
+
+use rsa::RsaPrivateKey;
 pub use records::*; // Flatten the modules tree a little bit
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::any::Any;
@@ -25,4 +27,5 @@ pub struct OSInfo {
 pub struct AppState {
 	pub db: Surreal<Any>,
 	pub jwks: JwkSet,
+	pub keys:  Vec<RsaPrivateKey>
 }

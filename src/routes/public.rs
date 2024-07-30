@@ -21,18 +21,11 @@ use crate::{
 
 /// Returns all the publicly accessible routes
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
-	let r = &CFG.http.routes;
 	Router::new()
-		.route(&r.public.healthcheck, get(healthcheck_handler))
-		.route(&r.public.ping, post(ping_handler))
-		.route(&r.public.signin, post(signin_handler))
+		.route("/ping", get(healthcheck_handler))
+		.route("/ping", post(ping_handler))
+		.route("/login", post(signin_handler))
 		.with_state(app_state)
-	
-	// // If in debug mode, return the debug route as well, else, just return the normal routes
-	// match cfg!(debug_assertions) {
-	// 	true => { router.route(&r.public.debug, post(public_debug)) },
-	// 	false => { router },
-	// }
 }
 
 
