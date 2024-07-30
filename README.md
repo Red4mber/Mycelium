@@ -1,13 +1,13 @@
 # Mycelium
 
 Mycelium is a lightweight Command and Control (C2) server written in Rust. This project is in its early stages and currently offers basic functionality.
+I just finished migrating the entire project from PostgreSQL to SurrealDB - It  took me an eternity, but it's done, I can finally get back working on meaningful changes to this
 
 ## Features
 
-- Configurable API endpoints via `settings.toml` 
-    
+- Configurable API endpoints via `settings.toml`
 - Basic implant for API testing with rudimentary enumeration using [Thermite](https://github.com/Red4mber/Thermite), my malware development rust library.
-- PostgreSQL database integration.
+- SurrealDB database integration.
 - JWT-based authentication for operators
 
 ## Getting Started
@@ -58,7 +58,6 @@ I'll try to make exports as often as possible but it still might be outdated.
 - Operators must first login via the `/login` endpoint to receive a JWT token for authentication.
 - Implant only authenticate using their UUID so far, their authentication mecanism being more complex I still need time to work on it.
 - Only registered operators can add new accounts.
-- A default user "Melusine" is pre-configured in the database with the default password `TransRights!` for initial access. 
 
 ## Current Limitations
 

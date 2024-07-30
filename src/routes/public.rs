@@ -1,66 +1,150 @@
+// use std::string::String;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use serde_json::json;
+use surrealdb::opt::auth::{Record, Root};
+use tracing::{debug, error, info};
+use serde::{Deserialize, Serialize};
 
-use axum::{Json, Router};
-use axum::body::Bytes;
-use axum::extract::State;
-use axum::response::IntoResponse;
-use axum::routing::{get, post};
+use axum::{
+	routing::{get, post},
+	response::IntoResponse,
+	body::Bytes, Json, Router,
+	extract::{ConnectInfo, State},
+	http::{header, StatusCode}
+};
+use crate::{
+	error::Error,
+	AppState,
+	settings::CFG
+};
 
-use crate::AppState;
-use crate::auth::{AuthBody, generate_token};
-use crate::error::Error;
-use crate::model::{db::Operator, SignInData};
-use crate::settings::SETTINGS;
-
-
+/// Returns all the publicly accessible routes
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
-    let r = &SETTINGS.http.routes;
-    Router::new()
-        .route(&r.unauthenticated.healthcheck, get(health_check_handler))
-        .route(&r.unauthenticated.ping, post(ping_handler))
-        .route(&r.unauthenticated.login, post(operator_login))
-        .with_state(app_state)
+	let r = &CFG.http.routes;
+	Router::new()
+		.route(&r.public.healthcheck, get(healthcheck_handler))
+		.route(&r.public.ping, post(ping_handler))
+		.route(&r.public.signin, post(signin_handler))
+		.with_state(app_state)
+	
+	// // If in debug mode, return the debug route as well, else, just return the normal routes
+	// match cfg!(debug_assertions) {
+	// 	true => { router.route(&r.public.debug, post(public_debug)) },
+	// 	false => { router },
+	// }
 }
 
 
+/// Healthcheck endpoint, always returns `{ "status": "ok" }`
+pub async fn healthcheck_handler(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> impl IntoResponse {
+	debug!(from=?addr, "Ping Received");
+	Json(json!({ "status": "ok" }))
+}
 
-// Simple health check endpoint
-pub async fn health_check_handler() -> impl IntoResponse {
-    Json(serde_json::json!({
-        "status": "ok",
-    }))
+/// Simple Ping API endpoint - Respond with the data it receives
+pub async fn ping_handler(
+	ConnectInfo(addr): ConnectInfo<SocketAddr>, body: Bytes
+) -> impl IntoResponse {
+	debug!(request_body=?body.clone(), from=?addr, "Ping Received");
+	body
+}
+
+/// Parameters of the Sign-In route
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Credentials {
+	email: String,
+	pass: String,
 }
 
 
-
-// Simple Ping API endpoint - Respond with the data it receives
-pub async fn ping_handler(body: Bytes) -> impl IntoResponse {
-    body
-}
-
-/// Handler for the operator login endpoint
-///
-/// Accepts the operator email and password as JSON
-pub async fn operator_login(
-    State(state): State<Arc<AppState>>,
-    Json(sign_in_data): Json<SignInData>,
+/// Handler for the operator Sign-In route
+pub async fn signin_handler(
+	State(state): State<Arc<AppState>>,
+	Json(creds): Json<Credentials>,
 ) -> Result<impl IntoResponse, Error> {
-    let result = state.db
-        .query_one("SELECT * FROM operators WHERE email = $1 LIMIT 1", &[&sign_in_data.email])
-        .await.map_err(|_| Error::WrongCredentials)?;
-    let operator = Operator::from(result);
-    
-    if !bcrypt::verify(sign_in_data.password, &operator.password).unwrap() {
-        return Err(Error::WrongCredentials);
-    };
-    let token = generate_token(&operator.id, &state.operator_keys.encoding_key)?;
-    
-    state.db
-          .execute("UPDATE operators SET last_login = NOW() WHERE id = $1", &[&operator.id])
-          .await.map_err(|_| Error::InternalError)?;
-    tracing::info!("Operator {} just logged in.", &operator.name);
-    Ok((
-        [("Authorization", format!("Bearer {token}"))],
-        Json(AuthBody::new(token)),
-    ))
+	state.db.signin(Root {
+		username: &CFG.db.user,
+		password: &CFG.db.pass,
+	}).await?;
+	state.db.use_ns(&CFG.db.ns)
+	        .use_db(&CFG.db.db)
+	        .await?;
+	
+	
+	let auth_data = Record {
+		namespace: &CFG.db.ns,
+		database: &CFG.db.db,
+		params: creds.clone(),
+		access: "operator",
+	};
+	// Wrong method : The access method does not exist
+	// ??????? : The access method cannot be used in the requested operation
+	
+	// let dbg = (creds.params.email.clone(), creds.params.pass.clone()); // For debug purposes
+	let res = state.db.signin(auth_data).await.map_err(|err| {
+		error!(credentials=?&creds, "Failed login attempt.");
+		Error::DatabaseError(err)
+	})?;
+	info!(user=&creds.email,"Successfully logged in.");
+	
+	let token = res.as_insecure_token();
+	Ok((
+		StatusCode::OK, 
+		[(header::AUTHORIZATION, format!("Bearer {}", token))],
+		Json(json!({ "Result":"Successfully logged in", "token": token }))
+	))
 }
+
+// DEBUG ROUTE
+// 
+// /// Holds the data needed by the debug routes
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// #[cfg(debug_assertions)]
+// pub struct DebugData {
+// 	// pub name: String,
+// 	pub email: String,
+// 	pub pass: String,
+// }
+// /// Handler for the debug routes,
+// #[axum_macros::debug_handler]
+// #[cfg(debug_assertions)]
+// pub async fn public_debug(
+// 	State(state): State<Arc<AppState>>,
+// 	Json(post_data): Json<DebugData>,
+// ) -> Result<impl IntoResponse, Error> {
+// 	debug!("Data Received :\n{}", format!("{:#?}", post_data));
+// 	state.db.use_ns(&SETTINGS.db_params.ns)
+// 			.use_db(&SETTINGS.db_params.db)
+// 			.await.map_err(Error::Database)?;
+// 	
+// 	state.db.signin(Root {
+// 		username: &SETTINGS.db_params.username,
+// 		password: &SETTINGS.db_params.password,
+// 	}).await.map_err(Error::Database)?;
+// 	
+// 
+// 	let res = state.db.signin(Record { 
+// 		namespace: &SETTINGS.db_params.ns,
+// 		database: &SETTINGS.db_params.db,
+// 		access: "operator_access",
+// 		params: post_data.clone() }).await;
+// 
+// 	// Check if the password is correct with a different query
+// 	let sql = "RETURN crypto::argon2::compare((SELECT pass FROM ONLY operator where email = $email LIMIT 1).pass, $pass)";
+// 	let mut response = state.db
+// 		.query(sql)
+// 		.bind(("email", post_data.email))
+// 		.bind(("pass", post_data.pass))
+// 		.await.map_err(Error::Database)?;
+// 	
+// 	// Testing if passwords are matching
+// 	let test: Option<bool> = response.take(0).map_err(Error::Database)?;
+// 	match test { Some(b) => { debug!("Passwords match ? {b:?}"); }
+// 				  None => { error!("Shit's fucked up") } };
+// 	
+// 	// Print results and stuff
+// 	match res { Ok(token) => { Ok(Json(json!({ "token": token }))) },
+// 				Err(e) => { error!("{e:?}"); Err(Error::Database(e)) } }
+// }
+// 

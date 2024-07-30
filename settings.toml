@@ -2,20 +2,25 @@
 [tracing]
 env_filter = "mycelium-api=trace,mycelium=trace,tower_http=debug"
 
-[database]
-host = "localhost"#"postgres
-username = "pguser"
-password = "pgpassword"#"Mycelium_is_a_root_like_structure"
-db_name = "mycelium"
+
+# TODO make this cleaner w/ enums and options + remove all the useless parameters
+
+[db_params]
+connect = "ws://localhost:8000" # https://docs.rs/surrealdb/1.5.4/surrealdb/engine/any/fn.connect.html
+username = "root"
+password = "Undiluted-Skinning-Elevate7"
+db = "mycelium_db"
+ns = "mycelium_ns"
 
 [http.listener]
 addr = "0.0.0.0"
 port = 3000
 
-[http.routes.unauthenticated]
-login = "/login"
-ping = "/healthcheck"
-healthcheck = "/healthcheck"
+[http.routes.public]
+debug = "/debug"       # Only accessible if compiling
+signin = "/signin"
+ping = "/ping"
+healthcheck = "/ping"
 
 [http.routes.operators]
 lookup_operator = "/operator/:id"
@@ -30,9 +35,11 @@ all_agents = "/agent/all"
 beacon = "/beacon"
 upload = "/upload/:filename"
 
-[tokens]
+[jwt]
 #key_path = "ec-private.pem" # Useless so far - Not used to generate keys but will be later
 ttl = "01d 00h 00m 00s"
+encoding_key = "D:\\Mycelium\\.local\\jwtRS256.pem"
+decoding_key = "D:\\Mycelium\\.local\\jwtRS256.pub.pem"
 
 [misc]
 uploads_dir = "./loot/"

@@ -3,33 +3,34 @@
 // It's all made available globally by the `SETTINGS` mutex.
 //
 use chrono::Duration;
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
+use std::{ collections::HashMap, fs, path::Path, sync::LazyLock };
 
-lazy_static! {
-    pub static ref SETTINGS: Settings = Settings::new("settings.toml");
-}
+
+// Hell Yeah - LazyLock Stable after Rust 1.80.0  \o/
+pub static CFG: LazyLock<Settings> = LazyLock::new(|| {
+    Settings::new("Settings.toml")
+});
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Settings {
-    pub tracing: Tracing,
-    pub database: Database,
+    #[serde(rename = "tracing")]
+    pub trace: Tracing,
+    #[serde(rename = "database")]
+    pub db: DbParameters,
     pub http: Http,
-    pub tokens: Tokens,
+    #[serde(rename = "tokens")]
+    pub jwt: Tokens,
+    #[serde(rename = "misc")]
     pub misc: Misc,
 }
-
 impl Settings {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let content = fs::read_to_string(path)
-            .expect("config file should be present in the root of the crate.\n");
-        let settings: Settings = toml::from_str(&content).expect(
-            "config file should be properly formatted. See `settings.example.toml` for an example.\n",
-        );
+            .expect("config file should exist\n");
+        let settings: Settings = toml::from_str(&content)
+            .expect("config file should be properly formatted.\n" );
         settings
     }
     pub fn _save_to_file<P: AsRef<Path>>(self, path: P) -> Result<(), Box<dyn std::error::Error>> {
@@ -44,69 +45,40 @@ pub struct Tracing {
     pub env_filter: String,
 }
 
-/// Settings related to the Postgresql Database
+/// Settings related to the database connection
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Database {
-    pub host: String,
-    pub username: String,
-    pub password: String,
-    pub db_name: String,
-}
-impl Database {
-    pub fn url(&self) -> String {
-        format!(
-            "postgres://{}:{}@{}/{}",
-            self.username, self.password, self.host, self.db_name
-        )
-    }
+pub struct DbParameters {
+    #[serde(rename = "connection")]
+    pub conn: String,
+    #[serde(rename = "username")]
+    pub user: String,
+    #[serde(rename = "password")]
+    pub pass: String,
+    #[serde(rename = "database")]
+    pub db: String,
+    #[serde(rename = "namespace")]
+    pub ns: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Http {
     pub listener: Listener,
-    pub routes: Routes,
+    // pub routes: Routes,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Listener {
+    #[serde(rename = "address")]
     pub addr: String,
+    #[serde(rename = "port")]
     pub port: u16,
 }
-
-/// Parent structure containing all the routes
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Routes {
-    pub unauthenticated: UnauthenticatedRoutes,
-    pub operators: AuthenticatedRoutes,
-    pub agent: AgentRoutes,
+impl Listener {
+    pub fn str(&self) -> String { 
+        format!("{}:{}",self.addr,self.port) 
+    }
 }
 
-/// The login route and the debug routes
-#[derive(Debug, Deserialize, Serialize)]
-pub struct UnauthenticatedRoutes {
-    pub login: String,
-    pub ping: String,
-    pub healthcheck: String,
-}
-
-/// All these routes that are accessible only after login
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AuthenticatedRoutes {
-    pub lookup_operator: String,
-    pub all_operators: String,
-    pub new_operator: String,
-    pub del_operator: String,
-    pub who_am_i: String,
-    pub lookup_agent: String,
-    pub all_agents: String,
-}
-
-/// All these routes are meant for implants communicating with the server via HTTP
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AgentRoutes {
-    pub beacon: String,
-    pub upload: String,
-}
 
 
 /// Parent structure containing settings related to the JWT
@@ -117,7 +89,8 @@ pub struct Tokens {
         deserialize_with = "deserialize_duration",
         serialize_with = "serialize_duration"
     )]
-    pub ttl: Duration
+    pub ttl: Duration,
+    pub iss: String,
 }
 
 /// All the settings that didn't fit anywhere else
@@ -128,7 +101,6 @@ pub struct Misc {
 
 // Above this line are the structs representing Mycelium's settings
 // Underneath here are the utility functions used to parse settings
-
 
 /// Custom deserializer for TTL duration
 fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
@@ -151,20 +123,14 @@ where
 /// Utility function to parse a string like (`05d 08h 04m 02s`)
 /// into a TimeDelta (alias of Duration)
 pub fn parse_time_delta(input: &str) -> Result<Duration, String> {
+    let re = Regex::new(r"(\d+)\s*([a-zA-Z]+)").unwrap(); // regexr.com/83oo7
     let unit_map = HashMap::from([
-        ("s", 1),
-        ("seconds", 1),
-        ("m", 60),
-        ("minutes", 60),
-        ("h", 3600),
-        ("hours", 3600),
-        ("d", 86400),
-        ("days", 86400),
-        ("w", 604800),
-        ("weeks", 604800),
+        ("s", 1), ("seconds", 1),
+        ("m", 60), ("minutes", 60),
+        ("h", 3600), ("hours", 3600),
+        ("d", 86400), ("days", 86400),
+        ("w", 604800), ("weeks", 604800),
     ]);
-    // regex tested and should work >> regexr.com/83oo7
-    let re = Regex::new(r"(\d+)\s*([a-zA-Z]+)").unwrap();
 
     let mut total_seconds = 0;
     for cap in re.captures_iter(input) {
@@ -181,21 +147,15 @@ pub fn parse_time_delta(input: &str) -> Result<Duration, String> {
 /// i don't even know why i write these myself...
 pub fn format_duration(duration: Duration) -> String {
     let total_seconds = duration.num_seconds();
-    let days = total_seconds / 86400;
-    let hours = (total_seconds % 86400) / 3600;
+    let days    =  total_seconds / 86400;
+    let hours   = (total_seconds % 86400) / 3600;
     let minutes = (total_seconds % 3600) / 60;
-    let seconds = total_seconds % 60;
+    let seconds =  total_seconds % 60;
 
     let mut parts = Vec::new();
-    if days > 0 {
-        parts.push(format!("{:02}d", days));
-    }
-    if hours > 0 || !parts.is_empty() {
-        parts.push(format!("{:02}h", hours));
-    }
-    if minutes > 0 || !parts.is_empty() {
-        parts.push(format!("{:02}m", minutes));
-    }
+    if days > 0                             { parts.push(format!("{:02}d", days));    }
+    if hours > 0    || !parts.is_empty()    { parts.push(format!("{:02}h", hours));   }
+    if minutes > 0  || !parts.is_empty()    { parts.push(format!("{:02}m", minutes)); }
     parts.push(format!("{:02}s", seconds));
     parts.join("")
 }
