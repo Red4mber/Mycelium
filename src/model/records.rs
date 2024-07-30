@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use surrealdb::sql::{Datetime, Thing};
 use crate::model::{CPUArch, OSInfo};
 
@@ -13,6 +13,7 @@ pub struct HostRecord {
 /// Represents a row of the `Agent` table 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AgentRecord {
+	#[serde(serialize_with = "simple_serializer")]
 	pub id: Thing,
 	pub time: TimeRecord
 }
@@ -20,6 +21,7 @@ pub struct AgentRecord {
 /// Represents a row of the `File` table 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FileRecord {
+	#[serde(serialize_with = "simple_serializer")]
 	pub id: Thing,
 	pub time: TimeRecord
 }
@@ -27,13 +29,16 @@ pub struct FileRecord {
 /// Represents the time object found in `Agent` and `File` 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TimeRecord {
+	#[serde(serialize_with = "datetime_serializer")]
 	pub created_at: Datetime,
+	#[serde(serialize_with = "datetime_serializer")]
 	pub updated_at: Datetime,
 }
 
 /// Represents a row of the `Operator` table
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
+	#[serde(serialize_with = "simple_serializer")]
 	pub id: Thing,
 	pub name: String,
 	pub email: String,
@@ -42,5 +47,16 @@ pub struct OperatorRecord {
 }
 
 
+fn simple_serializer<T,S>(thing: T, serializer: S) -> Result<S::Ok, S::Error> 
+where S: Serializer, T: ToString {
+	serializer.serialize_str(thing.to_string().as_str())
+}
 
-
+fn datetime_serializer<S>(datetime: &Datetime, serializer: S) -> Result<S::Ok, S::Error> 
+where S: Serializer {
+	serializer.serialize_str(
+		datetime
+			.format("%d/%m/%Y %H:%M")
+			.to_string()
+			.as_str())
+}
