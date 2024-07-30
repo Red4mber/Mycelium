@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use rand::rngs::OsRng;
@@ -35,12 +36,18 @@ pub struct JwkSet {
 	/// Tan array of JWKs.
 	pub keys: Vec<Jwk>,
 }
+impl JwkSet {
+	fn find_key(&self, kid: &str) -> Option<&Jwk>  {
+		self.keys.iter().find(|key| key.kid == kid)
+	}
+}
 
 impl Display for JwkSet {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", serde_json::to_string_pretty(&self).expect("Failed to serialize JWKS"))
 	}
 }
+
 
 /// Generates a Public/Private key pair.
 fn generate_rsa_key_pair(bits: usize) -> (RsaPrivateKey, RsaPublicKey) {
@@ -66,15 +73,17 @@ fn rsa_public_key_to_jwk(public_key: &RsaPublicKey, kid: &str) -> Jwk {
 	}
 }
 
-pub fn generate_jwkset() -> (JwkSet, Vec<RsaPrivateKey>) {
-	let (private_key1, public_key1) = generate_rsa_key_pair(2048);
-	let (private_key2, public_key2) = generate_rsa_key_pair(2048);
+pub fn generate_jwkset() -> (JwkSet, HashMap<String, RsaPrivateKey>) {
+	let (priv1, pub1) = generate_rsa_key_pair(2048);
+	let (priv2, pub2) = generate_rsa_key_pair(2048);
 
-	let jwk1 = rsa_public_key_to_jwk(&public_key1, "key1");
-	let jwk2 = rsa_public_key_to_jwk(&public_key2, "key2");
+	let mut priv_keys = HashMap::new();
+	priv_keys.insert("key1".to_string(), priv1);
+	priv_keys.insert("key2".to_string(), priv2);
+	let jwk1 = rsa_public_key_to_jwk(&pub1, "key1");
+	let jwk2 = rsa_public_key_to_jwk(&pub2, "key2");
 
 	let jwks = JwkSet { keys: vec![jwk1, jwk2] };
-	let priv_keys = vec![private_key1, private_key2];
 	(jwks, priv_keys)
 }
 

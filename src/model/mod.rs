@@ -1,6 +1,7 @@
 mod records;
 
 
+use std::collections::HashMap;
 use rsa::RsaPrivateKey;
 pub use records::*; // Flatten the modules tree a little bit
 use serde::{Deserialize, Serialize};
@@ -27,5 +28,5 @@ pub struct OSInfo {
 pub struct AppState {
 	pub db: Surreal<Any>,
 	pub jwks: JwkSet,
-	pub keys:  Vec<RsaPrivateKey>
+	pub keys:  HashMap<String, RsaPrivateKey>
 }

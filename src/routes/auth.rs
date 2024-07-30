@@ -4,7 +4,9 @@ use axum::{Json, Router};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use chrono::Utc;
-use jsonwebtoken::{Algorithm, Header};
+use jsonwebtoken::{Algorithm, encode, EncodingKey, Header};
+use rsa::pkcs1::LineEnding;
+use rsa::pkcs8::EncodePrivateKey;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::{AppState, CFG};
@@ -36,7 +38,22 @@ pub struct Claims {
 	/// SurrealDB System user roles (like `Owner` or `Editor`)
 	pub rl: Option<Vec<String>>,
 }
-
+impl Claims {
+	pub fn new(id: String, ac: String) -> Self {
+		Claims {
+			iat: Some(Utc::now().timestamp()),
+			nbf: Some(Utc::now().timestamp()),
+			exp: Some((Utc::now() + CFG.jwt.ttl).timestamp()),
+			jti: Some(Uuid::now_v7().to_string()),
+			id:  Some(id),
+			iss: Some(CFG.jwt.iss.to_string()),
+			ns:  Some(CFG.db.ns.to_string()),
+			db:  Some(CFG.db.db.to_string()),
+			ac:  Some(ac),
+			rl:  None,
+		}
+	}
+}
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 	Router::new()
 		.route("/token", get(token_handler))
@@ -44,30 +61,27 @@ pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 		.with_state(app_state)
 }
 
-
 pub async fn jwks_handler(state: State<Arc<AppState>>) -> impl IntoResponse {
 	Json(&state.jwks).into_response()
 }
 
-pub async fn token_handler(_state: State<Arc<AppState>>) -> impl IntoResponse {
-	let _token = "";
+pub async fn token_handler(state: State<Arc<AppState>>) -> impl IntoResponse {
 	let mut header = Header::new(Algorithm::RS256);
 	header.kid = Some("key1".to_string());
-	let claims = Claims {
-		iat: Some(Utc::now().timestamp()),
-		nbf: Some(Utc::now().timestamp()),
-		exp: Some((Utc::now() + CFG.jwt.ttl).timestamp()),
-		jti: Some(Uuid::now_v7().to_string()),
-		id:  Some("operator:john".to_string()),
-		iss: Some((&CFG.jwt.iss).to_string()),
-		ns:  Some((&CFG.db.ns).to_string()),
-		db:  Some((&CFG.db.db).to_string()),
-		ac:  Some("operator".to_string()),
-		rl:  None,
-	};
+	
+	// FIXME => Temporary hardcoded values
+	let claims = Claims::new("operator:john".to_string(), "operator".to_string());
+
+	let private_key = state.keys
+		.get("key1")
+		.unwrap()// TODO Clean all those unwraps 
+		.to_pkcs8_pem(LineEnding::LF)
+		.unwrap(); // TODO: do better
+	
+	let enc_key = EncodingKey::from_rsa_pem(private_key.as_bytes()).unwrap();
+	let token = encode(&header, &claims, &enc_key).unwrap();
 
 	Json(serde_json::json!({
-        "token": claims,
+        "token": token,
     }))
-
 }
