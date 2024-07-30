@@ -1,72 +1,266 @@
--- MIGRATION SCRIPT ONLY FOR TESTING / DEV ENVIRONMENT
--- Do not use this on an actual server
+-- =========================================================
+-- ========= ALL IN ONE SURREALDB RE-INITIALIZER ===========
+-- =========================================================
 
--- Creating email type
+-- delete relations
+DELETE controls;
+DELETE targets;
 
-CREATE EXTENSION citext;
-CREATE DOMAIN email AS citext
-  CHECK ( value ~ '^[a-zA-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$' );
+-- delete tables
+DELETE operator, host, agent;
 
--- CREATING AGENTS TABLE --
+-- delete system accounts
+REMOVE USER owner_account ON NAMESPACE;
+REMOVE USER editor_account ON NAMESPACE;
+REMOVE USER viewer_account ON NAMESPACE;
 
-CREATE TABLE IF NOT EXISTS agents (
-	id UUID NOT NULL PRIMARY KEY,
-	first_ping TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	last_ping TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	host_id UUID NOT NULL,
-	operator_id UUID NOT NULL,
-	-- CONSTRAINT fk_host FOREIGN KEY(host_id) REFERENCES hosts(id),				
-    -- CONSTRAINT fk_operator FOREIGN KEY(operator_id) REFERENCES operators(id),
-	notes TEXT
-);
+-- delete namespace and database
+REMOVE NAMESPACE IF EXISTS mycelium_ns;
+REMOVE DATABASE IF EXISTS mycelium_db;
 
-INSERT INTO agents (id, first_ping, last_ping, host_id, operator_id, notes) VALUES ('51d10216-2daf-41eb-a9ca-a8da3a3cc924', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'c6fb70b3-6d40-47ed-920c-1f205bc0f232', '15a374ef-0eda-4f01-9e2a-e1505ba60ed1', 'Test agent for debug purposes');
+-- =========================================================
+-- =========================================================
+-- =========================================================
 
--- CREATING OPERATORS TABLE --
+DEFINE DATABASE IF NOT EXISTS mycelium_db;
+DEFINE NAMESPACE IF NOT EXISTS mycelium_ns;
 
--- Enum types in postgresql suck so I removed the enum,
--- -- fuck type safety, integers are my best friend now
+USE NS mycelium_ns DB mycelium_db;
 
-CREATE TYPE operator_role AS ENUM ('admin', 'operator', 'guest');
+-------------------------------------
+    --- Adding database users ---
+-------------------------------------
 
-CREATE TABLE IF NOT EXISTS operators (
-	id UUID NOT NULL PRIMARY KEY DEFAULT (gen_random_uuid()),
-	name VARCHAR(255) NOT NULL,
-	email VARCHAR(255) NOT NULL UNIQUE,
-	password VARCHAR(255) NOT NULL,
-	created_by UUID NOT NULL,
-	role OPERATOR_ROLE NOT NULL DEFAULT 'operator',
-	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	last_login TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX operators_email_idx ON operators (email); 
+DEFINE USER owner_account -- 'Sulfur0-Everyone-Tweak'
+    ON NAMESPACE PASSHASH '$argon2id$v=19$m=19456,t=2,p=1$4ypnx/9D/Pp4DcaqyAK/qQ$slsYiKNFLVqWO8ltEm45Ha9hqTSL7ZCKG/5cHE1pxOA'
+    ROLES OWNER COMMENT "High privilege system account.";
+DEFINE USER editor_account -- 'Sleet9-Implosive-Occupier'
+    ON NAMESPACE PASSHASH '$argon2id$v=19$m=19456,t=2,p=1$xyJ8pE50MokRiO1jFDGJdQ$5CyOjZ8KPpf6vNEm0vKZhnxzpHUCVq5UfO88+mkckE0'
+    ROLES EDITOR COMMENT "Medium privilege system account.";
+DEFINE USER viewer_account -- 'Mounted-Drivable8-Giggling'
+    ON NAMESPACE PASSHASH '$argon2id$v=19$m=19456,t=2,p=1$BZYVIa5CeyWxoTsYL4LK7g$il7nhkrqgjYJh2pB8FQ4vXHtB3a5RIRSvGlct5n8vjU'
+    ROLES VIEWER COMMENT "Low privilege system account.";
 
-INSERT INTO operators (id, name, email, password, created_by, role) VALUES ('15a374ef-0eda-4f01-9e2a-e1505ba60ed1', 'Melusine', 'melusine@mycelium.com', '$2b$12$AlzNYI/5W98RB4fjtJ9ZfeWfs1ikQPKvs2MGfh0ER3SmUoRJyei7u', '00000000-0000-0000-0000-000000000000', 'admin');
+------------------------------------------------
+            --- CREATING TABLES ---
+------------------------------------------------
 
+------------------------------
+    --- Operator table ---
+------------------------------
 
--- CREATING HOSTS TABLE --
+USE NS mycelium_ns DB mycelium_db;
+DEFINE TABLE operator SCHEMAFULL PERMISSIONS FOR select, create, update, delete WHERE user = $auth.id OR $auth.admin = true;
+DEFINE FIELD name
+    ON operator
+    TYPE string;
+DEFINE FIELD email
+    ON operator
+    TYPE string
+    ASSERT string::is::email($value);
+DEFINE FIELD pass
+    ON operator
+    TYPE string
+    PERMISSIONS NONE;
+DEFINE FIELD admin
+    ON operator
+    TYPE bool;
+DEFINE FIELD enabled
+    ON operator
+    TYPE bool;
 
-CREATE TABLE IF NOT EXISTS hosts (
-	id UUID NOT NULL PRIMARY KEY,
-	agent UUID NOT NULL,
-	hostname VARCHAR(255) NOT NULL,
-	os VARCHAR(255) NOT NULL,
-	known_users VARCHAR(255)[]  NOT NULL,
-	external_ip INET NOT NULL DEFAULT inet '0.0.0.0',
-	processor_number VARCHAR(255) NOT NULL,
-	processor_id VARCHAR(255) NOT NULL,
-	userdomain VARCHAR(255),
-	notes TEXT
-);
+DEFINE INDEX email ON operator FIELDS email UNIQUE;
 
-INSERT INTO hosts (id, agent, hostname, os, known_users, external_ip, processor_number, processor_id, userdomain, notes) 
-VALUES ('c6fb70b3-6d40-47ed-920c-1f205bc0f232', '51d10216-2daf-41eb-a9ca-a8da3a3cc924', 'DESKTOP-F4K3PC', 'Win11 24H2', ARRAY ['Administrator', 'Melusine'], INET '129.64.112.197', 4, 'x86 Family 15 Model 2 Stepping 9, GenuineIntel', 'DESKTOP-DEADPC', 'Fake host with dummy info, added to test database');
+---
+DEFINE ACCESS operator ON DATABASE TYPE RECORD
+	SIGNUP ( CREATE operator SET email = $email, pass = crypto::argon2::generate($pass) )
+	SIGNIN ( SELECT * FROM operator WHERE email = $email AND crypto::argon2::compare(pass, $pass) )
+    AUTHENTICATE {
+        IF type::thing("token", $token.jti).revoked = true { THROW "This token has been revoked"; };
+        INSERT INTO token { id: $token.jti, exp: $token.exp, revoked: false };
+        CREATE audit_log CONTENT {
+            token: $token.jti,
+            time: time::now(),
+            account: $auth.id,
+            description: "New Operator token created."
+        };
+        RETURN $auth;
+    }
+    WITH JWT URL "http://host.docker.internal:3000/auth/jwks"
+    DURATION FOR TOKEN 15m, FOR SESSION 12h;
 
--- CREATING HOSTS TABLE --
+----------------------------
+    --- Agents table ---
+----------------------------
 
-CREATE TABLE IF NOT EXISTS files (
-	id UUID NOT NULL PRIMARY KEY,
-	host_id UUID NOT NULL,
-	filename VARCHAR(255) NOT NULL,
-	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-)
+USE NS mycelium_ns DB mycelium_db;
+DEFINE TABLE agent SCHEMALESS;
+DEFINE FIELD time
+    ON TABLE agent
+    TYPE object
+    DEFAULT {};
+DEFINE FIELD time.created_at
+    ON TABLE agent
+    TYPE datetime
+    VALUE $before OR time::now()
+    DEFAULT time::now();
+DEFINE FIELD time.updated_at
+    ON TABLE agent
+    TYPE datetime
+    VALUE time::now()
+    DEFAULT time::now();
+DEFINE FIELD key
+    ON TABLE agent
+    TYPE String
+    DEFAULT crypto::sha512(rand::string());
+
+DEFINE ACCESS agent ON DATABASE TYPE RECORD
+	SIGNUP {
+        IF !$access = "operator" { THROW "Please login." };
+        CREATE operator CONTENT {
+            id: rand::uuid::v7(),
+            key: crypto::sha512(rand::string())
+        };
+    }
+	SIGNIN {
+        IF !$access = "operator" { THROW "Please login." };
+        SELECT * FROM agent WHERE id = $email;
+    }
+    AUTHENTICATE {
+        IF type::thing("token", $token.jti).revoked = true {
+            THROW "This token has been revoked";
+        };
+        INSERT INTO token {
+            id: $token.jti,
+            exp: $token.exp,
+            revoked: false
+        };
+        CREATE audit_log CONTENT {
+            token: $token.jti,
+            time: time::now(),
+            account: $auth.id,
+            description: "New 'Agent' token created."
+        };
+        RETURN $auth;
+    }
+    WITH JWT URL "http://host.docker.internal:3000/auth/jwks"
+    DURATION FOR TOKEN 15m, FOR SESSION 1h;
+
+----------------------------
+    --- Hosts table ---
+----------------------------
+
+DEFINE TABLE host
+    SCHEMALESS
+    PERMISSIONS NONE;
+DEFINE FIELD hostname
+    ON TABLE host
+    TYPE string;
+DEFINE FIELD os
+    ON TABLE host
+    TYPE Object
+    DEFAULT {};
+DEFINE FIELD os.family
+    ON TABLE host
+    TYPE string;
+DEFINE FIELD os.version
+    ON TABLE host
+    FLEXIBLE;
+DEFINE FIELD arch
+    ON TABLE host
+    TYPE string
+    ASSERT $value INSIDE ["I386", "AMD64", "ARM64", "ARM", "PowerPC", "MIPS", "Unknown"];
+
+-- Add host reference to agent table
+DEFINE FIELD host
+    ON TABLE agent
+    TYPE Option<Record<host>>;
+
+----------------------------
+    --- Files table ---
+----------------------------
+
+DEFINE TABLE file
+    SCHEMALESS
+    PERMISSIONS NONE;
+DEFINE FIELD from_host
+    ON TABLE file
+    TYPE record<host>;
+DEFINE FIELD filename
+    ON TABLE file
+    TYPE string;
+DEFINE FIELD filepath
+    ON TABLE file
+    TYPE string;
+DEFINE FIELD time.created_at
+    ON TABLE file
+    TYPE datetime
+    VALUE $before OR time::now()
+    DEFAULT time::now();
+DEFINE FIELD time.updated_at
+    ON TABLE file
+    TYPE datetime
+    VALUE time::now()
+    DEFAULT time::now();
+
+------------------------------------------------
+            --- CREATING RELATIONS ---
+------------------------------------------------
+
+-- => Operator->Control->Agent
+DEFINE TABLE control;
+DEFINE FIELD in ON TABLE control TYPE record<operator>;
+DEFINE FIELD out ON TABLE control TYPE record<agent>;
+DEFINE INDEX unique_rel ON TABLE control COLUMNS in, out UNIQUE;
+
+-- => Agent->Target->Host
+DEFINE TABLE target;
+DEFINE FIELD in ON TABLE target TYPE record<agent>;
+DEFINE FIELD out ON TABLE target TYPE record<host>;
+DEFINE INDEX unique_rel ON TABLE target COLUMNS in, out UNIQUE;
+
+-- ==============================================================
+-- ==============================================================
+-- ==============================================================
+
+CREATE operator:john CONTENT {
+    email: "john.doe@example.com",
+    name: 'John "Big D" Doe',
+    pass: crypto::argon2::generate("V3ry_S3cur3"),
+    admin: true,
+    enabled: true
+};
+CREATE operator:jane CONTENT {
+    email: "jane.doe@example.com",
+    name: 'Jane "JayJay" Doe',
+    pass: crypto::argon2::generate("Passw0rd123"),
+    admin: false,
+    enabled: true
+};
+
+CREATE agent:dummy1 CONTENT { host: host:`0190f63b-db0a-795b-b277-cff60883387a` };
+CREATE agent:dummy2 CONTENT { host: host:`0190f63b-db0a-795b-b277-cff60883387a` };
+CREATE agent:dummy3 CONTENT { host: host:`0190f63b-db0a-795b-b277-cff60883387a` };
+
+RELATE operator:john->control->agent:dummy1;
+RELATE operator:john->control->agent:dummy2;
+RELATE operator:jane->control->agent:dummy3;
+
+CREATE host:`0190f63b-db0a-795b-b277-cff60883387a` CONTENT {
+    hostname: 'Desktop-F4K3PC',
+    users: ["Administrator", "Harry Targetson"],
+    host_id: u"0190f63b-db0a-795b-b277-cff60883387a",
+    os: {
+        family: "Windows",
+        version: "Win11 22H2"
+    },
+    arch: "AMD64"
+};
+
+RELATE agent:dummy1->target->host:desktop1;
+
+CREATE file CONTENT {
+    from_host: host:desktop1,
+    filename: "fake_data.txt",
+    filepath: "/loot/0190f63b-db0a-795b-b277-cff60883387a/fake_data.txt",
+};
