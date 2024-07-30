@@ -3,36 +3,19 @@
 env_filter = "mycelium-api=trace,mycelium=trace,tower_http=debug"
 
 [database]
-host = "localhost"#"postgres
-username = "pguser"
-password = "pgpassword"#"Mycelium_is_a_root_like_structure"
-db_name = "mycelium"
+username = "root"
+password = "Undiluted-Skinning-Elevate7"
+connection = "ws://localhost:8000" # https://docs.rs/surrealdb/1.5.4/surrealdb/engine/any/fn.connect.html
+database = "mycelium_db"
+namespace = "mycelium_ns"
 
 [http.listener]
-addr = "0.0.0.0"
+address = "0.0.0.0"
 port = 3000
 
-[http.routes.unauthenticated]
-login = "/login"
-ping = "/healthcheck"
-healthcheck = "/healthcheck"
-
-[http.routes.operators]
-lookup_operator = "/operator/:id"
-all_operators = "/operator/all"
-del_operator = "/operator/:id"
-new_operator = "/operator"
-who_am_i = "/operator"
-lookup_agent = "/agent/:id"
-all_agents = "/agent/all"
-
-[http.routes.agent]
-beacon = "/beacon"
-upload = "/upload/:filename"
-
 [tokens]
-#key_path = "ec-private.pem" # Useless so far - Not used to generate keys but will be later
 ttl = "01d 00h 00m 00s"
+iss = "Mycelium API"
 
 [misc]
 uploads_dir = "./loot/"

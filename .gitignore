@@ -5,7 +5,6 @@
 /.idea
 /.vscode
 /loot
-/docs/collection_to_marjdown.py
-/docs/Mycelium API.postman_collection.json
-/docs/Mycelium API.postman_collection_v2.json
-/docs/output.md
+/docs/*
+/.local/
+/.local/*

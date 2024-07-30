@@ -8,38 +8,35 @@ services:
     ports:
       - 3000:3000
     links:
-      - postgres
+      - surrealdb
     healthcheck:
-      test: ["CMD-SHELL", "curl --silent --fail localhost:3000/healthcheck || exit 1"]
+      test: ["CMD-SHELL", "curl --silent --fail localhost:3000/ping || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
     networks:
       - mycelium-net
     depends_on:
-      postgres:
-        condition: service_healthy
+      - surrealdb
 
-  postgres:
-    image: postgres:14-alpine
-    ports:
-      - 5432:5432
-    environment:
-      - POSTGRES_PASSWORD=pgpassword
-      - POSTGRES_USER=pguser
-      - POSTGRES_DB=mycelium
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
-      interval: 10s
-      retries: 5
-      start_period: 30s
-      timeout: 10s
+  surrealdb:
     networks:
       - mycelium-net
-    volumes:
-      - db-data:/var/lib/postgresql/data
-      - ./migrations/:/docker-entrypoint-initdb.d/
-    restart: unless-stopped
+    entrypoint:
+      - /surreal
+      - start
+      - --log
+      - trace
+      - --allow-all
+      - --user
+      - $DB_USER
+      - --pass
+      - $DB_PASSWORD
+    image: surrealdb/surrealdb:v2.0.0-alpha.7
+    ports:
+      - 8000:8000
+    environment:
+      - .env
 
 networks:
   mycelium-net:

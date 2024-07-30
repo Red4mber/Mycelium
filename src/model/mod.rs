@@ -1,52 +1,31 @@
+mod records;
 
 
-use jsonwebtoken::{DecodingKey, EncodingKey};
+use rsa::RsaPrivateKey;
+pub use records::*; // Flatten the modules tree a little bit
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use crate::model::db::OperatorRole;
+use surrealdb::engine::any::Any;
+use surrealdb::Surreal;
+use crate::authentication::jwks::JwkSet;
 
 
-pub mod db;
-pub mod agent;
-
-
-/// Stores the keys used to encode and decodes JWTs inside the AppState
-#[derive(Clone)]
-pub struct AuthKeys {
-    pub encoding_key: EncodingKey,
-    pub decoding_key: DecodingKey,
+/// Enum representing the most common CPU Architectures
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum CPUArch {
+	I386, AMD64, ARM, ARM64, MIPS, PowerPC, Unknown
 }
 
-/// Describes an operator account, but without sensitive information such as email or pw hash
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OperatorPublicInfo {
-    pub id: Uuid,
-    pub name: String,
-    pub role: OperatorRole,
-    pub created_by: Uuid,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+/// Structure containing Operating system identification information 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OSInfo {
+	family: String,
+	version: String
 }
 
-/// Payload used in the JWT
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-    pub sub: Uuid,
-    pub iat: usize,
-    pub exp: usize,
-}
 
-/// Data sent during the operators login process
-#[derive(Debug, Deserialize)]
-pub struct SignInData {
-    pub email: String,
-    pub password: String,
-}
-
-/// Data needed to create a new operator account
-#[derive(Debug, Deserialize)]
-pub struct CreateAccountData {
-    pub name: String,
-    pub email: String,
-    pub password: String,
-    pub role: OperatorRole,
+#[derive(Debug, Clone)]
+pub struct AppState {
+	pub db: Surreal<Any>,
+	pub jwks: JwkSet,
+	pub keys:  Vec<RsaPrivateKey>
 }

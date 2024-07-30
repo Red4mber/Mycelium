@@ -2,89 +2,57 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::Router;
-// use sqlx::{postgres::PgPoolOptions, PgPool};
-use tokio_postgres::{NoTls, Client};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{
+    layer::SubscriberExt, util::SubscriberInitExt
+};
+use surrealdb::{
+    engine::any,
+    opt::auth::Root
+};
+use tracing::info;
 
-use crate::settings::SETTINGS;
-use crate::auth::generate_encryption_keys;
-use crate::model::AuthKeys;
-
-
-mod auth;
-mod error;
-mod model;
-mod routes;
-mod settings;
-
-// #[derive(Clone)]
-pub struct AppState {
-    db: Client,
-    operator_keys: AuthKeys,
-}
+pub use mycelium::*;
 
 
-// // Utility function that returns a slice containing the raw bytes of any `Sized` type
-unsafe fn _any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    core::slice::from_raw_parts((p as *const T) as *const u8, core::mem::size_of::<T>())
-}
+
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Error> {
+    info!("Mycelium server is starting....");
     dotenv::dotenv().ok();
-
-    // Set-up tracing subscriber, using the environment or a default
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or(SETTINGS.tracing.env_filter.parse().unwrap()),
-        )
-        .with(
-            tracing_subscriber::fmt::layer()
-                // .pretty()
-        )
-        .init();
+        .with(tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or(CFG.trace.env_filter.parse().unwrap()),
+        ).with(tracing_subscriber::fmt::layer()).init();
 
-    // Database connect
-    let (client, connection) = match tokio_postgres::connect(&*SETTINGS.database.url(), NoTls).await {
-        Ok((client, connection)) => {
-            tracing::info!("Successfully connected to the database!");
-            (client, connection)
-        }
-        Err(e) => {
-            tracing::error!("Failed to connect to the postgres database: {e}");
-            std::process::exit(-1)
-        }
-    };
-    // This connection thing communicates with the DB, so let's spawn a task for it ^-^
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            tracing::error!("Database connection error: {}", e);
-        }
-    });
+    let db_client = any::connect(&CFG.db.conn).await.map_err(Error::DatabaseError)?;
 
-    let (encoding_key, decoding_key) = generate_encryption_keys();
-    let state = Arc::new(AppState {
-        db: client,
-        operator_keys: AuthKeys {
-            encoding_key, decoding_key
-        },
-    });
-
+    // Sign in as root
+    db_client.signin(Root {
+        username: &CFG.db.user,
+        password: &CFG.db.pass,
+    }).await.map_err(Error::DatabaseError)?;
+    
+    // Prepare the state of the application
+    let (jwks, keys) = authentication::jwks::generate_jwkset();
+    let app_state = Arc::new(AppState { db: db_client, jwks, keys });
+    
+    // Fetches routes from our different routers and merges them in a single one
     let app = Router::new()
-        .merge(routes::public::get_routes(Arc::clone(&state)))
-        .merge(routes::authenticated::get_routes(Arc::clone(&state)))
-        .merge(routes::agents::get_routes(Arc::clone(&state)))
-        .with_state(state);
+        .merge(routes::public::get_routes(app_state.clone()))
+        .nest("/user",  routes::operator::get_routes(app_state.clone()))
+        .nest("/agent", routes::agent::get_routes(app_state.clone()))
+        .nest("/host",  routes::host::get_routes(app_state.clone()))
+        .nest("/file",  routes::file::get_routes(app_state.clone()))
+        .nest("/auth",  routes::auth::get_routes(app_state.clone()))
+        .with_state(app_state.clone());
 
     // run our app
-    let addr = format!(
-        "{}:{}",
-        SETTINGS.http.listener.addr, SETTINGS.http.listener.port
-    );
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(
+        CFG.http.listener.str()
+    ).await.unwrap();
 
-    tracing::info!("listening on {}", listener.local_addr().unwrap());
+    info!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
-// Made it a service that extract SocketAddr so I can log the client's IP if anything fishy occurs
+    Ok(())
 }
