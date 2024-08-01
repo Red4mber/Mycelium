@@ -14,6 +14,8 @@ address = "0.0.0.0"
 port = 3000
 
 [tokens]
+persist_keys = true
+key_dir = "./keys/"
 ttl = "01d 00h 00m 00s"
 iss = "Mycelium API"
 

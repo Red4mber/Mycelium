@@ -1,4 +1,5 @@
 mod records;
+pub mod auth;
 
 
 use std::collections::HashMap;
@@ -7,7 +8,7 @@ pub use records::*; // Flatten the modules tree a little bit
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::any::Any;
 use surrealdb::Surreal;
-use crate::authentication::jwks::JwkSet;
+use auth::JwkSet;
 
 
 /// Enum representing the most common CPU Architectures

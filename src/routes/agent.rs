@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use tracing::debug;
 
 use crate::AppState;
-use crate::authentication::middleware::auth_middleware;
+use crate::authentication::auth_middleware;
 use crate::model::AgentRecord;
 
 

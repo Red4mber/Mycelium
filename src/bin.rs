@@ -34,7 +34,7 @@ async fn main() -> Result<(), Error> {
     }).await.map_err(Error::DatabaseError)?;
     
     // Prepare the state of the application
-    let (jwks, keys) = authentication::jwks::generate_jwkset();
+    let (jwks, keys) = authentication::jwks::prepare_jwkset();
     let app_state = Arc::new(AppState { db: db_client, jwks, keys });
     
     // Fetches routes from our different routers and merges them in a single one

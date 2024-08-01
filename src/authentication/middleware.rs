@@ -10,10 +10,13 @@ use axum::middleware::Next;
 use axum::response::Response;
 use futures::TryFutureExt;
 use jsonwebtoken::{Algorithm, decode, DecodingKey, TokenData, Validation};
+use jsonwebtoken::errors::ErrorKind;
+use rsa::pkcs1::LineEnding;
+use rsa::pkcs8::EncodePublicKey;
+use rsa::RsaPublicKey;
 use surrealdb::engine::any::Any;
-use surrealdb::iam::token::Claims;
 use surrealdb::opt::auth::Root;
-use surrealdb::sql::Thing;
+use surrealdb::sql::{Thing, thing};
 use surrealdb::Surreal;
 pub use tracing::{debug, error};
 use tracing::info;
@@ -22,26 +25,12 @@ use Error::EmailExists;
 
 use crate::{AppState, CFG};
 use crate::error::Error;
-use crate::model::{AgentRecord, OperatorRecord};
-
-// /// Data added to the HTTP request the authentication middleware to identify the author of the request
-// #[derive(Debug, Clone)]
-// pub enum AuthData {
-// 	Operator(OperatorAuth),
-// 	Agent(AgentAuth)
-// }
-
-
-#[derive(Debug, Clone)]
-pub struct AuthData {
-	/// Contains all the Claims decoded from the JWT
-	jwt: TokenData<Claims>,
-	/// Contains the database record of the current user
-	rec: OperatorRecord
-}
-
-
-
+use crate::Error::TokenExpired;
+use crate::model::{
+	auth::{AuthData, Claims}, 
+	AgentRecord, 
+	OperatorRecord
+};
 // Todo REWORK AGENT AUTHENTICATION // Think before you do
 // Plan stuff, design the system before starting it
 // Consider a TOTP rather than a token
@@ -74,12 +63,20 @@ pub async fn auth_middleware(
 	let mut header = auth_header.split_whitespace();
 	let (_, token) = (header.next(), header.next().ok_or(Error::PermissionDenied)?);
 
-	// Once the token has been parsed, we try to authenticate with it to validate it
+
 	// state.db.authenticate(token).await?;
-	// let token_data = decode_token(token.to_string()).await.map_err(|err| {
-	// 	error!(err=err, token=token.to_string(), "Failed to decode token.");
-	// 	Error::InternalError
-	// })?;
+	let headers = jsonwebtoken::decode_header(token).map_err(|e| Error::PermissionDenied)?;
+	let key_id = headers.kid.ok_or(Error::PermissionDenied)?;
+	let private_key = state.keys.get(key_id.as_str()).ok_or(Error::InternalError)?;
+	let decoding_key = DecodingKey::from_rsa_pem(
+		RsaPublicKey::from(private_key)
+			.to_public_key_pem(LineEnding::LF)
+			.map_err(|_| Error::InternalError)?
+			.as_bytes()
+	).map_err(|_| Error::InternalError)?;
+	let token_data = decode_token(token, &decoding_key).await.map_err(|_| { 
+		Error::InternalError
+	})?;
 
 	// Query operator record from the database to make sure the user exists
 	// let record_id = token_data.clone().claims.id.ok_or(Error::TokenInvalid)?;
@@ -87,9 +84,9 @@ pub async fn auth_middleware(
 	// let auth_data = match thing.tb.as_str() {
 	// 	"operator" => {
 	// 		Ok(AuthData::Operator(OperatorAuth {
-	// 			jwt: token_data,
-	// 			rec: get_operator_record(&thing, &state.db).await?,
-	// 		}))
+	// 	// 			jwt: token_data,
+	// 	// 			rec: get_operator_record(&thing, &state.db).await?,
+	// 	// 		}))
 	// 	},
 	// 	"agent" => {
 	// 		Ok(AuthData::Agent(AgentAuth {
@@ -100,8 +97,30 @@ pub async fn auth_middleware(
 	// 	_ => Err(Error::InternalError)
 	// }?;
 
-	// req.extensions_mut().insert(auth_data);
+	let thing = Thing::from_str(&token_data.id.clone().unwrap()).map_err(|_| Error::InternalError)?;
+	req.extensions_mut().insert(AuthData {
+					jwt: token_data.clone(),
+					rec: get_operator_record(&thing, &state.db).await?,
+				});
 	Ok(next.run(req).await)
+}
+
+
+async fn decode_token(token: &str, key: &DecodingKey) -> Result<Claims, Error> {
+	let mut validation = Validation::new(Algorithm::RS256);
+	validation.set_audience(&["Mycelium"]);
+	validation.set_required_spec_claims(&["exp", "sub", "aud", "nbf", "iss"]);
+	validation.algorithms = vec![Algorithm::RS256];
+	match decode::<Claims>(token, key, &validation) {
+		Ok(data) => Ok(data.claims),
+		Err(err) => Err(match err.kind() {
+			ErrorKind::ExpiredSignature => Error::TokenExpired,
+			_ => {
+				error!(err=err.to_string(), token, "Failed to decode token.");
+				Error::PermissionDenied
+			}
+		}),
+	}
 }
 
 
@@ -113,10 +132,11 @@ pub async fn get_operator_record(operator_id: &Thing, db: &Surreal<Any>) -> Resu
 	})
 }
 
-pub async fn get_agent_record(agent_id: &Thing, db: &Surreal<Any>) -> Result<AgentRecord, Error> {
-	let response: Option<AgentRecord> = db.select(agent_id).await?;
-	response.ok_or_else(|| {
-		error!(record=agent_id.to_string(), "Can't find the Agent in the database.");
-		Error::InternalError
-	})
-}
+
+// pub async fn get_agent_record(agent_id: &Thing, db: &Surreal<Any>) -> Result<AgentRecord, Error> {
+// 	let response: Option<AgentRecord> = db.select(agent_id).await?;
+// 	response.ok_or_else(|| {
+// 		error!(record=agent_id.to_string(), "Can't find the Agent in the database.");
+// 		Error::InternalError
+// 	})
+// }
