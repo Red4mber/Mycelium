@@ -1,12 +1,14 @@
 mod records;
+pub mod auth;
 
 
+use std::collections::HashMap;
 use rsa::RsaPrivateKey;
 pub use records::*; // Flatten the modules tree a little bit
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::any::Any;
 use surrealdb::Surreal;
-use crate::authentication::jwks::JwkSet;
+use auth::JwkSet;
 
 
 /// Enum representing the most common CPU Architectures
@@ -27,5 +29,5 @@ pub struct OSInfo {
 pub struct AppState {
 	pub db: Surreal<Any>,
 	pub jwks: JwkSet,
-	pub keys:  Vec<RsaPrivateKey>
+	pub keys:  HashMap<String, RsaPrivateKey>
 }

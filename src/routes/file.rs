@@ -15,8 +15,9 @@ use tokio::io::BufWriter;
 use tokio_util::io::StreamReader;
 use crate::{AppState, CFG};
 use crate::error::Error;
-use crate::authentication::middleware::{auth_middleware, AuthData};
+use crate::authentication::middleware::auth_middleware;
 use crate::model::{FileRecord, HostRecord};
+use crate::model::auth::AuthData;
 
 
 /// Returns all the routes of this module

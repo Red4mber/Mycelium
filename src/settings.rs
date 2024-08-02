@@ -91,6 +91,8 @@ pub struct Tokens {
     )]
     pub ttl: Duration,
     pub iss: String,
+    pub persist_keys: bool,
+    pub key_dir: String
 }
 
 /// All the settings that didn't fit anywhere else

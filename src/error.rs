@@ -26,6 +26,8 @@ pub enum Error {
     DatabaseError(surrealdb::Error),
     #[error("{0}")]
     GenericError(String),
+    #[error("Your token has expired. Please log-in again.")]
+    TokenExpired,
 }
 impl Error {
     pub fn get_error_code(&self) -> StatusCode {
@@ -40,6 +42,7 @@ impl Error {
             Error::InvalidUploadPath => StatusCode::BAD_REQUEST,
             Error::OperatorDoesNotExists(_) => StatusCode::NOT_FOUND,
             Error::CannotDeleteAdmins => StatusCode::METHOD_NOT_ALLOWED,
+            Error::TokenExpired => StatusCode::UNAUTHORIZED,
             _ => StatusCode::IM_A_TEAPOT
         }
     }

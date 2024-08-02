@@ -1,53 +1,23 @@
-use std::fmt::Display;
+use std::collections::HashMap;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize};
 use base64::{engine::general_purpose, Engine as _};
+use rsa::pkcs1::LineEnding;
+use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use rsa::traits::PublicKeyParts;
+use tracing::log::error;
+use uuid::Uuid;
+use crate::model::auth::{Jwk, JwkSet};
+use crate::CFG;
 
 
-/// JSON Web Key (JWK)
-///
-/// Represents a cryptographic key.
-/// The fields of the structure represent properties of the key, including its value.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Jwk {
-	/// The family of cryptographic algorithms used with the key.
-	pub kty: String,
-	/// Encryption Algorithm
-	pub alg: String,
-	/// The modulus for the RSA public key.
-	pub n: String,
-	/// The exponent for the RSA public key.
-	pub e: String,
-	/// The unique identifier for the key.
-	pub kid: String,
-	/// Optional field. Identifies the intended use of the public key.
-	#[serde(skip_serializing_if = "Option::is_none", rename="use")]
-	pub use_: Option<String>,
-}
-
-/// JSON Web Key Set (JWKS)
-///
-/// Represents a set of JWKs
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct JwkSet {
-	/// Tan array of JWKs.
-	pub keys: Vec<Jwk>,
-}
-
-impl Display for JwkSet {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}", serde_json::to_string_pretty(&self).expect("Failed to serialize JWKS"))
-	}
-}
 
 /// Generates a Public/Private key pair.
-fn generate_rsa_key_pair(bits: usize) -> (RsaPrivateKey, RsaPublicKey) {
+fn generate_rsa_key(bits: usize) -> (String, RsaPrivateKey) {
 	let mut rng = OsRng;
 	let private_key = RsaPrivateKey::new(&mut rng, bits).expect("Failed to generate private key");
-	let public_key = RsaPublicKey::from(&private_key);
-	(private_key, public_key)
+	let kid = Uuid::new_v4().to_string();
+	(kid, private_key)
 }
 
 
@@ -66,15 +36,41 @@ fn rsa_public_key_to_jwk(public_key: &RsaPublicKey, kid: &str) -> Jwk {
 	}
 }
 
-pub fn generate_jwkset() -> (JwkSet, Vec<RsaPrivateKey>) {
-	let (private_key1, public_key1) = generate_rsa_key_pair(2048);
-	let (private_key2, public_key2) = generate_rsa_key_pair(2048);
+/// Function that initialize the JwkSet with two RSA keys, as example
+pub fn prepare_jwkset() -> (JwkSet, HashMap<String, RsaPrivateKey>) {
+	let mut priv_keys = HashMap::new();
 
-	let jwk1 = rsa_public_key_to_jwk(&public_key1, "key1");
-	let jwk2 = rsa_public_key_to_jwk(&public_key2, "key2");
-
-	let jwks = JwkSet { keys: vec![jwk1, jwk2] };
-	let priv_keys = vec![private_key1, private_key2];
+	if CFG.jwt.persist_keys {
+		for entry in glob::glob("./keys/*.pem").unwrap() {              // TODO - De-Unwrap this prototype function
+			match entry { 
+				Ok(key) => {
+					let kid = key.file_name().unwrap().to_str().unwrap().to_string(); // Sheesh that's ugly
+					let private_key = RsaPrivateKey::read_pkcs8_pem_file(key).unwrap();
+					priv_keys.insert(kid, private_key);
+				},
+				Err(err) => {
+					error!( "Can't read key : {err}");
+				}
+			}
+		}
+		if priv_keys.is_empty() {
+			let (kid, private_key) = generate_rsa_key(2048);
+			private_key.write_pkcs8_pem_file(format!("./keys/{kid}.pem"), LineEnding::default()).expect("TODO");
+			priv_keys.insert(kid, private_key);
+		}
+	} else {
+		let (kid, private_key) = generate_rsa_key(2048);
+		priv_keys.insert(kid, private_key);
+	}
+	
+	let mut jwks_keys = Vec::new();
+	for (kid, privkey) in &priv_keys {
+		let pub_key = RsaPublicKey::from(privkey);
+		let jwk = rsa_public_key_to_jwk(&pub_key, kid.as_str());
+		jwks_keys.push(jwk);
+	}
+	let jwks = JwkSet { keys: jwks_keys };
+	
 	(jwks, priv_keys)
 }
 

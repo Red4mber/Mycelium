@@ -24,7 +24,7 @@ pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 	Router::new()
 		.route("/ping", get(healthcheck_handler))
 		.route("/ping", post(ping_handler))
-		.route("/login", post(signin_handler))
+		// .route("/login", post(signin_handler))
 		.with_state(app_state)
 }
 
@@ -51,43 +51,43 @@ pub struct Credentials {
 }
 
 
-/// Handler for the operator Sign-In route
-pub async fn signin_handler(
-	State(state): State<Arc<AppState>>,
-	Json(creds): Json<Credentials>,
-) -> Result<impl IntoResponse, Error> {
-	state.db.signin(Root {
-		username: &CFG.db.user,
-		password: &CFG.db.pass,
-	}).await?;
-	state.db.use_ns(&CFG.db.ns)
-	        .use_db(&CFG.db.db)
-	        .await?;
-	
-	
-	let auth_data = Record {
-		namespace: &CFG.db.ns,
-		database: &CFG.db.db,
-		params: creds.clone(),
-		access: "operator",
-	};
-	// Wrong method : The access method does not exist
-	// ??????? : The access method cannot be used in the requested operation
-	
-	// let dbg = (creds.params.email.clone(), creds.params.pass.clone()); // For debug purposes
-	let res = state.db.signin(auth_data).await.map_err(|err| {
-		error!(credentials=?&creds, "Failed login attempt.");
-		Error::DatabaseError(err)
-	})?;
-	info!(user=&creds.email,"Successfully logged in.");
-	
-	let token = res.as_insecure_token();
-	Ok((
-		StatusCode::OK, 
-		[(header::AUTHORIZATION, format!("Bearer {}", token))],
-		Json(json!({ "Result":"Successfully logged in", "token": token }))
-	))
-}
+// /// Handler for the operator Sign-In route
+// pub async fn signin_handler(
+// 	State(state): State<Arc<AppState>>,
+// 	Json(creds): Json<Credentials>,
+// ) -> Result<impl IntoResponse, Error> {
+// 	state.db.signin(Root {
+// 		username: &CFG.db.user,
+// 		password: &CFG.db.pass,
+// 	}).await?;
+// 	state.db.use_ns(&CFG.db.ns)
+// 	        .use_db(&CFG.db.db)
+// 	        .await?;
+// 	
+// 	
+// 	let auth_data = Record {
+// 		namespace: &CFG.db.ns,
+// 		database: &CFG.db.db,
+// 		params: creds.clone(),
+// 		access: "operator",
+// 	};
+// 	// Wrong method : The access method does not exist
+// 	// ??????? : The access method cannot be used in the requested operation
+// 	
+// 	// let dbg = (creds.params.email.clone(), creds.params.pass.clone()); // For debug purposes
+// 	// let res = state.db.signin(auth_data).await.map_err(|err| {
+// 	// 	error!(credentials=?&creds, "Failed login attempt.");
+// 	// 	Error::DatabaseError(err)
+// 	// })?;
+// 	info!(user=&creds.email,"Successfully logged in.");
+// 	
+// 	let token = res.as_insecure_token();
+// 	Ok((
+// 		StatusCode::OK, 
+// 		[(header::AUTHORIZATION, format!("Bearer {}", token))],
+// 		Json(json!({ "Result":"Successfully logged in", "token": token }))
+// 	))
+// }
 
 // DEBUG ROUTE
 // 
