@@ -5,7 +5,7 @@ use axum::{Json, Router};
 use axum::routing::get;
 use serde_json::{json, Value};
 use crate::AppState;
-use crate::authentication::{auth_middleware, middleware};
+use crate::authentication::{auth_middleware};
 use crate::model::OperatorRecord;
 
 
