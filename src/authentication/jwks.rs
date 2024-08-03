@@ -39,6 +39,7 @@ fn rsa_public_key_to_jwk(public_key: &RsaPublicKey, kid: &str) -> Jwk {
 /// Function that initialize the JwkSet with two RSA keys, as example
 pub fn prepare_jwkset() -> (JwkSet, HashMap<String, RsaPrivateKey>) {
 	let mut priv_keys = HashMap::new();
+	// FIXME Crashes if directory doesn't exist
 
 	if CFG.jwt.persist_keys {
 		for entry in glob::glob("./keys/*.pem").unwrap() {              // TODO - De-Unwrap this prototype function

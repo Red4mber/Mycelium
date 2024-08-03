@@ -15,7 +15,11 @@ pub struct HostRecord {
 pub struct AgentRecord {
 	#[serde(serialize_with = "simple_serializer")]
 	pub id: Thing,
-	pub time: TimeRecord
+	#[serde(serialize_with = "simple_serializer")]
+	pub host: Thing,
+	pub time: TimeRecord,
+	pub key: String,
+
 }
 
 /// Represents a row of the `File` table 

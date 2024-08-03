@@ -64,7 +64,6 @@ pub async fn auth_middleware(
 	let (_, token) = (header.next(), header.next().ok_or(Error::PermissionDenied)?);
 
 
-	// state.db.authenticate(token).await?;
 	let headers = jsonwebtoken::decode_header(token).map_err(|e| Error::PermissionDenied)?;
 	let key_id = headers.kid.ok_or(Error::PermissionDenied)?;
 	let private_key = state.keys.get(key_id.as_str()).ok_or(Error::InternalError)?;
@@ -77,25 +76,6 @@ pub async fn auth_middleware(
 	let token_data = decode_token(token, &decoding_key).await.map_err(|_| { 
 		Error::InternalError
 	})?;
-
-	// Query operator record from the database to make sure the user exists
-	// let record_id = token_data.clone().claims.id.ok_or(Error::TokenInvalid)?;
-	// let thing = Thing::from_str(&record_id).unwrap();
-	// let auth_data = match thing.tb.as_str() {
-	// 	"operator" => {
-	// 		Ok(AuthData::Operator(OperatorAuth {
-	// 	// 			jwt: token_data,
-	// 	// 			rec: get_operator_record(&thing, &state.db).await?,
-	// 	// 		}))
-	// 	},
-	// 	"agent" => {
-	// 		Ok(AuthData::Agent(AgentAuth {
-	// 			jwt: token_data,
-	// 			rec: get_agent_record(&thing, &state.db).await?
-	// 		}))
-	// 	},
-	// 	_ => Err(Error::InternalError)
-	// }?;
 
 	let thing = Thing::from_str(&token_data.id.clone().unwrap()).map_err(|_| Error::InternalError)?;
 	req.extensions_mut().insert(AuthData {
@@ -131,12 +111,3 @@ pub async fn get_operator_record(operator_id: &Thing, db: &Surreal<Any>) -> Resu
 		Error::InternalError
 	})
 }
-
-
-// pub async fn get_agent_record(agent_id: &Thing, db: &Surreal<Any>) -> Result<AgentRecord, Error> {
-// 	let response: Option<AgentRecord> = db.select(agent_id).await?;
-// 	response.ok_or_else(|| {
-// 		error!(record=agent_id.to_string(), "Can't find the Agent in the database.");
-// 		Error::InternalError
-// 	})
-// }
