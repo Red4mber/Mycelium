@@ -8,11 +8,10 @@
 #                               BUILDER STAGE
 ################################################################################
 
-ARG RUST_VERSION=1.79.0
+ARG RUST_VERSION=1.80.0
 ARG APP_NAME=mycelium-api 
 
 FROM rust:${RUST_VERSION}-alpine AS builder
-ARG APP_NAME
 WORKDIR /app
 
 # Install host build dependencies.
@@ -23,7 +22,6 @@ RUN --mount=type=bind,source=src,target=src \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
     --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     --mount=type=bind,source=migrations,target=migrations \
     <<EOF
@@ -31,6 +29,9 @@ set -e
 cargo build --locked --release
 cp ./target/release/$APP_NAME /bin/mycelium-api
 EOF
+
+# FIXME > Broken due to inconsistent linebreaks - Fix: Make a entrypoint.sh
+# GOD I HATE WINDOWS - WHY IS CRLF EVEN A THING
 
 ################################################################################
 #                               RUNNER STAGE
