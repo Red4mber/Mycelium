@@ -13,9 +13,9 @@ use crate::{AppState, CFG, Error, model::auth::Claims};
 use crate::model::OperatorRecord;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct LoginData {
-	email: String,
-	password: String,
+pub struct LoginData {
+	pub email: String,
+	pub password: String,
 }
 
 

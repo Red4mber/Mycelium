@@ -2,22 +2,16 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 use serde_json::json;
-use surrealdb::opt::auth::{Record, Root};
-use tracing::{debug, error, info};
+use tracing::debug;
 use serde::{Deserialize, Serialize};
 
 use axum::{
 	routing::{get, post},
 	response::IntoResponse,
 	body::Bytes, Json, Router,
-	extract::{ConnectInfo, State},
-	http::{header, StatusCode}
+	extract::ConnectInfo,
 };
-use crate::{
-	error::Error,
-	AppState,
-	settings::CFG
-};
+use crate::AppState;
 
 /// Returns all the publicly accessible routes
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {

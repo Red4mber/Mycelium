@@ -1,6 +1,5 @@
 use std::fmt::Display;
 use chrono::Utc;
-use jsonwebtoken::TokenData;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::CFG;
@@ -92,11 +91,11 @@ pub struct Jwk {
 /// Represents a set of JWKs
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JwkSet {
-	/// Tan array of JWKs.
+	/// Array of JWKs.
 	pub keys: Vec<Jwk>,
 }
 impl JwkSet {
-	fn find_key(&self, kid: &str) -> Option<&Jwk>  {
+	pub fn find_key(&self, kid: &str) -> Option<&Jwk>  {
 		self.keys.iter().find(|key| key.kid == kid)
 	}
 }
