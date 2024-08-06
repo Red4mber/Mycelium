@@ -1,23 +1,24 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
-use axum::extract::{ConnectInfo, State};
+use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::middleware::from_fn_with_state;
-use axum::{Json, Router};
-use axum::routing::get;
+use axum::{Extension, Json, Router};
+use axum::routing::{get, post};
 use serde_json::{json, Value};
-use tracing::debug;
+use surrealdb::sql::Thing;
+use tracing::info;
 
 use crate::AppState;
 use crate::authentication::auth_middleware;
 use crate::model::AgentRecord;
+use crate::model::auth::AuthData;
 
 
 /// Returns all the publicly accessible routes
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 	Router::new()
-		.route("/dbg", get(auth_debug))
 		.route("/", get(agent_query_all))
+		.route("/new", post(new_agent))
 		.layer(from_fn_with_state(app_state.clone(), auth_middleware))
 		.with_state(app_state)
 }
@@ -31,7 +32,18 @@ pub async fn agent_query_all(
 }
 
 
-pub async fn auth_debug(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> impl IntoResponse {
-	debug!("Ping from {addr:?}");
-	Json(json!({ "status": "ok" }))
+pub async fn new_agent(
+	Extension(auth): Extension<AuthData>,
+	State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, crate::error::Error> {
+	info!({operator_id=auth.rec.id.to_string()}, "Operator `{}` is registering a new agent.", auth.rec.name);
+	let new_id = uuid::Uuid::new_v4().to_string();
+	let new_agent: Option<AgentRecord> = state.db.insert(("agent", new_id.clone())).await?;
+	state.db.query("RELATE $operator_id->control->$agent_id;")
+		.bind(("operator_id", auth.rec.id))
+		.bind(("agent_id", Thing::from(("agent".to_string(), new_id))))
+		.await?;
+	Ok(Json(json!({ "status": "ok", "Agent": new_agent })))
 }
+
+

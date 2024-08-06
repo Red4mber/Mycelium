@@ -62,16 +62,14 @@ pub async fn upload_handler(
 	Path(file_name): Path<String>,
 	request: Request,
 ) -> Result<(), Error> {
-	tracing::info!("Agent {} is uploading a file : {file_name} ...", auth.record.id);
-	let host_id = auth.record.host.id.to_string();
+	info!("Agent {} is uploading a file : {file_name} ...", auth.record.id);
+	let host_id = auth.record.host.ok_or(InternalError)?;
 	let path = std::path::Path::new(&CFG.misc.uploads_dir)
-		.join(host_id.trim_matches(&['⟨', '⟩']))
-		.join(&file_name)
-		// .canonicalize()
-		// .map_err(|_| InternalError)?;
-;
+		.join(host_id.id.to_string().trim_matches(&['⟨', '⟩']))
+		.join(&file_name);
+
 	let file_info = FileInfo {
-		from_host: auth.record.host,
+		from_host: host_id,
 		filename: file_name,
 		filepath: path.to_str().unwrap().to_string(),
 	};
@@ -83,16 +81,23 @@ pub async fn upload_handler(
 	Ok(())
 }
 
+/// Create a new record in the database
 async fn new_file_record(file_info: &FileInfo, db: &Surreal<Any>) -> Result<(), Error> {
 	db.signin(Root {
-		username: &CFG.db.user,
-		password: &CFG.db.pass,
+		username: &CFG.db.user, password: &CFG.db.pass
 	}).await?;
 	db.use_ns(&CFG.db.ns).use_db(&CFG.db.db).await?;
-	let _: Vec<FileRecord> = db.insert("file")
+
+	let rec: Vec<FileRecord> = db.insert("file")
 		.content(file_info)
 		.await
 		.map_err(|err| Error::DatabaseError(err))?;
+
+	db.query("RELATE $host_id->upload->$file_id;")
+	     .bind(("host_id", &file_info.from_host))
+	     .bind(("file_id", &rec.first().unwrap().id))
+	     .await?;
+
 	Ok(())
 }
 
@@ -116,7 +121,7 @@ fn filename_is_valid(path: &str) -> bool {
 
 
 
-// Save a `Stream` to a file
+/// Saves a `Stream` to a file
 async fn stream_to_file<S, E>(stream: S, info: &FileInfo) -> Result<(), Error>
 where
 	S: Stream<Item = Result<Bytes, E>>,
