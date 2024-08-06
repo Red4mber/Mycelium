@@ -15,11 +15,10 @@ pub struct HostRecord {
 pub struct AgentRecord {
 	#[serde(serialize_with = "simple_serializer")]
 	pub id: Thing,
-	#[serde(serialize_with = "simple_serializer")]
-	pub host: Thing,
+	#[serde(skip_serializing_if = "Option::is_none",serialize_with = "opt_serializer")]
+	pub host: Option<Thing>,
 	pub time: TimeRecord,
 	pub key: String,
-
 }
 
 /// Represents a row of the `File` table 
@@ -51,9 +50,14 @@ pub struct OperatorRecord {
 }
 
 
-fn simple_serializer<T,S>(thing: T, serializer: S) -> Result<S::Ok, S::Error> 
+fn simple_serializer<T,S>(thing: T, serializer: S) -> Result<S::Ok, S::Error>
 where S: Serializer, T: ToString {
 	serializer.serialize_str(thing.to_string().as_str())
+}
+fn opt_serializer<T,S>(thing: &Option<T>, serializer: S) -> Result<S::Ok, S::Error>
+where S: Serializer, T: ToString, T: Clone {
+	// TODO Can we do without clone ?
+	serializer.serialize_str(thing.clone().unwrap().to_string().as_str())
 }
 
 fn datetime_serializer<S>(datetime: &Datetime, serializer: S) -> Result<S::Ok, S::Error> 
