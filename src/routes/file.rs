@@ -1,13 +1,9 @@
-#![allow(unused)]
 use tokio::io;
-use std::ops::Not;
-use std::str::FromStr;
 use std::sync::Arc;
 use axum::extract::{Path, Request, State};
 use axum::middleware::from_fn_with_state;
 use axum::{BoxError, Extension, Json, Router};
 use axum::body::Bytes;
-use axum::http::StatusCode;
 use axum::routing::{get, post};
 use futures::{Stream, TryStreamExt};
 use serde::Serialize;
@@ -20,14 +16,12 @@ use tokio::fs::File;
 use tokio::io::BufWriter;
 use tokio_util::io::StreamReader;
 use tracing::info;
-use uuid::Uuid;
 use crate::{AppState, CFG};
 use crate::authentication::{agent_middleware, auth_middleware};
 use crate::authentication::agent::AgentData;
 use crate::error::Error;
 use crate::Error::InternalError;
-use crate::model::{FileRecord, HostRecord};
-use crate::model::auth::AuthData;
+use crate::model::FileRecord;
 
 
 /// Returns all the routes of this module
@@ -56,7 +50,7 @@ struct FileInfo {
 }
 
 /// Handler for file uploads
-pub async fn upload_handler(
+async fn upload_handler(
 	Extension(auth): Extension<AgentData>,
 	State(state): State<Arc<AppState>>,
 	Path(file_name): Path<String>,
@@ -73,7 +67,7 @@ pub async fn upload_handler(
 		filename: file_name,
 		filepath: path.to_str().unwrap().to_string(),
 	};
-	stream_to_file(request.into_body().into_data_stream(), &file_info).await;
+	stream_to_file(request.into_body().into_data_stream(), &file_info).await?;
 
 	new_file_record(&file_info, &state.db).await?;
 	info!({file=?file_info}, "File successfully uploaded !");
@@ -127,7 +121,7 @@ where
 	S: Stream<Item = Result<Bytes, E>>,
 	E: Into<BoxError>,
 {
-	if filename_is_valid(info.filename.as_str()).not() {
+	if !filename_is_valid(info.filename.as_str()) {
 		tracing::error!("The file cannot be uploaded, invalid file name : {}", &info.filename);
 		return Err(Error::InvalidUploadPath)
 	};

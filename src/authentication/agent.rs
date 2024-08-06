@@ -1,9 +1,9 @@
 use std::str::FromStr;
 use std::sync::Arc;
-use axum::extract::{Request, State};
 use axum::http;
 use axum::middleware::Next;
 use axum::response::Response;
+use axum::extract::{Request, State};
 use surrealdb::engine::any::Any;
 use surrealdb::opt::auth::Root;
 use surrealdb::sql::Thing;
@@ -41,12 +41,9 @@ pub async fn agent_middleware(
 	let mut header = auth_header.split_whitespace();
 	let uuid = header.next().ok_or(Error::PermissionDenied)?;
 	let uuid: Uuid = Uuid::from_str(uuid).map_err(|_| Error::PermissionDenied)?;
-	// debug!("Agent {uuid:?}");
-
 
 	let record = get_agent_record(&Thing::from_str(format!("agent:`{uuid}`").as_str()).map_err(|_| InternalError)?, &state.db).await?;
-
-
+	
 	req.extensions_mut().insert(AgentData {
 		record
 	});
@@ -58,6 +55,6 @@ pub async fn get_agent_record(agent_id: &Thing, db: &Surreal<Any>) -> Result<Age
 	let response: Option<AgentRecord> = db.select(agent_id).await?;
 	response.ok_or_else(|| {
 		error!(record=agent_id.to_string(), "Can't find the Agent in the database.");
-		Error::InternalError
+		InternalError
 	})
 }

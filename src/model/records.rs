@@ -56,7 +56,7 @@ where S: Serializer, T: ToString {
 }
 fn opt_serializer<T,S>(thing: &Option<T>, serializer: S) -> Result<S::Ok, S::Error>
 where S: Serializer, T: ToString, T: Clone {
-	// TODO Can we do without clone ?
+	// TODO Kinda ugly - Can we do without clone ?
 	serializer.serialize_str(thing.clone().unwrap().to_string().as_str())
 }
 

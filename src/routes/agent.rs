@@ -9,7 +9,7 @@ use surrealdb::sql::Thing;
 use tracing::info;
 
 use crate::AppState;
-use crate::authentication::auth_middleware;
+use crate::authentication::{agent_middleware, auth_middleware};
 use crate::model::AgentRecord;
 use crate::model::auth::AuthData;
 
@@ -20,11 +20,12 @@ pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 		.route("/", get(agent_query_all))
 		.route("/new", post(new_agent))
 		.layer(from_fn_with_state(app_state.clone(), auth_middleware))
+		.route("/", post(beacon_handler).layer(from_fn_with_state(app_state.clone(), agent_middleware)))
 		.with_state(app_state)
 }
 
 /// Route used to list every agent registered
-pub async fn agent_query_all(
+async fn agent_query_all(
 	State(state): State<Arc<AppState>>
 ) -> Result<Json<Value>, String> {
 	let res: Vec<AgentRecord> = state.db.select("agent").await.map_err(|e|e.to_string())?;
@@ -32,7 +33,8 @@ pub async fn agent_query_all(
 }
 
 
-pub async fn new_agent(
+/// Handler for the agent registering route
+async fn new_agent(
 	Extension(auth): Extension<AuthData>,
 	State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, crate::error::Error> {
@@ -47,3 +49,6 @@ pub async fn new_agent(
 }
 
 
+async fn beacon_handler() {
+	
+}

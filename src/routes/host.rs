@@ -19,7 +19,7 @@ pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 
 
 /// Route used to list every agent registered
-pub async fn host_query_all(
+async fn host_query_all(
 	State(state): State<Arc<AppState>>
 ) -> Result<Json<Value>, String> {
 	let res: Vec<HostRecord> = state.db.select("host").await.map_err(|e|e.to_string())?;
