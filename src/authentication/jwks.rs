@@ -39,10 +39,9 @@ fn rsa_public_key_to_jwk(public_key: &RsaPublicKey, kid: &str) -> Jwk {
 /// Function that initialize the JwkSet with two RSA keys, as example
 pub fn prepare_jwkset() -> (JwkSet, HashMap<String, RsaPrivateKey>) {
 	let mut priv_keys = HashMap::new();
-	// FIXME Crashes if directory doesn't exist
-
+	std::fs::create_dir_all("./keys").unwrap();
 	if CFG.jwt.persist_keys {
-		for entry in glob::glob("./keys/*.pem").unwrap() {              // TODO - De-Unwrap this prototype function
+		for entry in glob::glob("./keys/*.pem").unwrap() {
 			match entry { 
 				Ok(key) => {
 					let kid = key.file_name().unwrap().to_str().unwrap().to_string(); // Sheesh that's ugly
