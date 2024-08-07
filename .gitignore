@@ -1,10 +1,6 @@
-/target/
-*/target/
-/.env
-/.sqlx
-/.idea
+/target
+/mycelium/loot/*
+/mycelium/keys/*.pem
 /.vscode
-/loot
-/docs/*
-/.local/
-/keys/*.pem
+/.idea
+/.env
