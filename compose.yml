@@ -3,7 +3,7 @@ name: mycelium_c2
 services:
   mycelium-api:
     build:
-      context: .
+      context: ./mycelium/
       target: runner
     ports:
       - 3000:3000

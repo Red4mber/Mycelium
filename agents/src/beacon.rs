@@ -20,14 +20,6 @@ pub struct BeaconData {
 
 
 fn main() -> Result<(), String> {
-	// Retrieve system process info
-	// let sys_proc_info_ptr = processes::get_process_info();
-
-	// Enumerate all processes
-	// let processes = processes::enumerate_processes(sys_proc_info_ptr).iter().map(|(_, _, proc_info_ptr)| unsafe {
-	// 	Process::new(proc_info_ptr.cast_const())
-	// }).collect();
-
 	let (cmdline, cwd, env, osver) = unsafe { (get_command_line(), get_current_directory(), get_environment(), get_os_version()) };
 	
 	// All this information is gathered by reading the PEB/TEB, no API calls needed
