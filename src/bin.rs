@@ -1,20 +1,13 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-
 use axum::Router;
-use tracing_subscriber::{
-    layer::SubscriberExt, util::SubscriberInitExt
-};
-use surrealdb::{
-    engine::any,
-    opt::auth::Root
-};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use surrealdb::engine::any;
+use surrealdb::opt::auth::Root;
 use tracing::info;
 
 pub use mycelium::*;
-
-
-
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -39,12 +32,8 @@ async fn main() -> Result<(), Error> {
     
     // Fetches routes from our different routers and merges them in a single one
     let app = Router::new()
-        .merge(routes::public::get_routes(app_state.clone()))
-        .nest("/user",  routes::operator::get_routes(app_state.clone()))
-        .nest("/agent", routes::agent::get_routes(app_state.clone()))
-        .nest("/host",  routes::host::get_routes(app_state.clone()))
-        .nest("/file",  routes::file::get_routes(app_state.clone()))
-        .nest("/auth",  routes::auth::get_routes(app_state.clone()))
+        .merge(routes::operator::get_routes(app_state.clone()))
+        .merge(routes::agent::get_routes(app_state.clone()))
         .with_state(app_state.clone());
 
     // run our app
