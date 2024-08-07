@@ -25,7 +25,6 @@ use Error::EmailExists;
 
 use crate::{AppState, CFG};
 use crate::error::Error;
-use crate::Error::TokenExpired;
 use crate::model::{
 	auth::{AuthData, Claims}, 
 	AgentRecord, 

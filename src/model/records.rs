@@ -3,20 +3,36 @@ use surrealdb::sql::{Datetime, Thing};
 use crate::model::{CPUArch, OSInfo};
 
 
+
+/// Struct used when querying a "Target" graph to see if an implant is on a Host
+#[derive(Serialize, Deserialize, Clone)]
+pub struct HostTarget {
+	#[serde(rename = "->host")]
+	pub host: Vec<Thing>
+}
+
+
 /// Represents a row of the `Host` table
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HostRecord {
-	arch: CPUArch,
-	hostname: String,
-	os: OSInfo
+	pub arch: CPUArch,
+	pub hostname: String,
+	pub users: Vec<String>,
+	pub os: OSInfo
 }
 /// Represents a row of the `Agent` table 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AgentRecord {
 	#[serde(serialize_with = "simple_serializer")]
 	pub id: Thing,
-	#[serde(skip_serializing_if = "Option::is_none",serialize_with = "opt_serializer")]
-	pub host: Option<Thing>,
+	pub time: TimeRecord,
+	pub key: String,
+}
+
+/// Dirty fix for a bug
+/// Can't have ID field when updating a specific record
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NoIdAgentRecord {
 	pub time: TimeRecord,
 	pub key: String,
 }
@@ -32,9 +48,7 @@ pub struct FileRecord {
 /// Represents the time object found in `Agent` and `File` 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TimeRecord {
-	#[serde(serialize_with = "datetime_serializer")]
 	pub created_at: Datetime,
-	#[serde(serialize_with = "datetime_serializer")]
 	pub updated_at: Datetime,
 }
 
@@ -53,18 +67,4 @@ pub struct OperatorRecord {
 fn simple_serializer<T,S>(thing: T, serializer: S) -> Result<S::Ok, S::Error>
 where S: Serializer, T: ToString {
 	serializer.serialize_str(thing.to_string().as_str())
-}
-fn opt_serializer<T,S>(thing: &Option<T>, serializer: S) -> Result<S::Ok, S::Error>
-where S: Serializer, T: ToString, T: Clone {
-	// TODO Kinda ugly - Can we do without clone ?
-	serializer.serialize_str(thing.clone().unwrap().to_string().as_str())
-}
-
-fn datetime_serializer<S>(datetime: &Datetime, serializer: S) -> Result<S::Ok, S::Error> 
-where S: Serializer {
-	serializer.serialize_str(
-		datetime
-			.format("%d/%m/%Y %H:%M")
-			.to_string()
-			.as_str())
 }

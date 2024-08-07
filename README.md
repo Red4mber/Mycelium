@@ -1,12 +1,10 @@
 # Mycelium
 
-Mycelium is a lightweight Command and Control (C2) server written in Rust. This project is in its early stages and currently offers basic functionality.
-I just finished migrating the entire project from PostgreSQL to SurrealDB - It  took me an eternity, but it's done, I can finally get back working on meaningful changes to this
+Mycelium is a lightweight Command and Control (C2) server written in Rust.
 
-## Features
+## Some Features
 
-- Configurable API endpoints via `settings.toml`
-- Basic implant for API testing with rudimentary enumeration using [Thermite](https://github.com/Red4mber/Thermite), my malware development rust library.
+- A basic implant for testing purpose using [Thermite](https://github.com/Red4mber/Thermite), an offensive rust library.
 - SurrealDB database integration.
 - JWT-based authentication for operators
 
@@ -32,12 +30,7 @@ To build and run Mycelium, start the server by running:
 docker compose up --build
 ```
 
-The initial build may take 1-2 minutes. Once complete, the server will be available at http://localhost:3000.
-
-### Database
-
-- Migrations for setting up the database are located in the `/migrations` folder.
-- The database is pre-populated with dummy values for development and testing.
+The initial build may take 5-10 minutes. Once complete, the API will be available at http://localhost:3000.
 
 ## API Documentation
 
@@ -49,17 +42,10 @@ Took me what felt like years, but i finally cleaned Postman from everything it c
 > https://documenter.getpostman.com/view/37113998/2sA3kXCzjz
 
 
-## Authentication
-
-- All API endpoints require authentication.
-- Operators must first login via the `/login` endpoint to receive a JWT token for authentication.
-- Implant only authenticate using their UUID so far, their authentication mecanism being more complex I still need time to work on it.
-- Only registered operators can add new accounts.
-
 ## Current Limitations
 
 - No GUI available yet; all interactions are currently done through the API.
-- Project is in very early development; features may be limited or subject to change.
+- Project is in __very__ early development; features may be limited or subject to change.
 
 ## Contributing
 

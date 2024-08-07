@@ -21,7 +21,7 @@ use crate::authentication::{agent_middleware, auth_middleware};
 use crate::authentication::agent::AgentData;
 use crate::error::Error;
 use crate::Error::InternalError;
-use crate::model::FileRecord;
+use crate::model::{FileRecord, HostTarget};
 
 
 /// Returns all the routes of this module
@@ -57,7 +57,19 @@ async fn upload_handler(
 	request: Request,
 ) -> Result<(), Error> {
 	info!("Agent {} is uploading a file : {file_name} ...", auth.record.id);
-	let host_id = auth.record.host.ok_or(InternalError)?;
+
+	let sql = "SELECT ->target->host FROM $agent;";
+	let mut res = state.db
+		.query(sql)
+		.bind(("agent", auth.record.id.clone()))
+		.await?;
+	let host_target: Option<HostTarget> = res.take("->target")?;
+	let host_id = host_target
+		.ok_or(InternalError)?
+		.host.first()
+		.ok_or(Error::PermissionDenied)?
+		.clone();
+
 	let path = std::path::Path::new(&CFG.misc.uploads_dir)
 		.join(host_id.id.to_string().trim_matches(&['⟨', '⟩']))
 		.join(&file_name);

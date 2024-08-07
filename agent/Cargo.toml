@@ -7,13 +7,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-mycelium = { path = ".." }
+#mycelium = { path = ".." }
 thermite = { git = "https://github.com/Red4mber/Thermite" }
+#thermite = { path =  }
 reqwest = { version = "0.12.5", features = ["json", "blocking"] }
 serde = { version = "1.0.204", features = ["derive"] }
 
 # Some optimizations for a smaller binary
-[profile.dev]
+[profile.release]
 debug = false
 lto = true
 opt-level = "s"
