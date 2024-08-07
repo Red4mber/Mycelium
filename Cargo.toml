@@ -1,2 +1,3 @@
 [workspace]
-members = ["mycelium", "mycelium-agent"]
+members = ["mycelium", "agents"]
+
