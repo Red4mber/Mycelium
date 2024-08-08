@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use axum::Router;
 use axum::middleware::from_fn_with_state;
-use axum::routing::post;
+use axum::routing::{get, post};
 
 use crate::AppState;
 use crate::authentication::agent_middleware;
@@ -9,13 +9,16 @@ use crate::model::{BeaconData, CPUArch, HostRecord, OSInfo};
 
 mod beacon;
 mod upload;
+mod tasks;
+
 
 /// Returns all the publicly accessible routes
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 	Router::new()
+		.route("/poll", get(tasks::task_poll_handler))
+		.route("/update_task", post(tasks::task_update_handler))
 		.route("/beacon", post(beacon::beacon_handler))
 		.route("/upload/:file_name", post(upload::upload_handler))
-
 		.layer(from_fn_with_state(app_state.clone(), agent_middleware))
 		.with_state(app_state)
 }

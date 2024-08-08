@@ -11,19 +11,6 @@ use surrealdb::Surreal;
 use auth::JwkSet;
 
 
-/// Enum representing the most common CPU Architectures
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum CPUArch {
-	X86, AMD64, ARM, ARM64, MIPS, PowerPC, Unknown
-}
-
-/// Structure containing Operating system identification information 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OSInfo {
-	pub(crate) family: String,
-	pub(crate) version: String
-}
-
 
 #[derive(Debug, Clone)]
 pub struct AppState {

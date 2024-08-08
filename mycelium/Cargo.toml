@@ -36,13 +36,14 @@ rand = "0.8.5"
 rsa = "0.9.6"
 base64 = "0.22.1"
 glob = "0.3.1"
-
-[dev-dependencies]
 axum-macros = "0.4.1"
+
 
 
 [dependencies.surrealdb]
 git = "https://github.com/surrealdb/surrealdb"
+#rev = "ebc140e" # BROKEN :$
 rev = "2b1e6a3"
+
 #features = ["default", ]
 #version = "2.0.0-alpha7"

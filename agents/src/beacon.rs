@@ -1,5 +1,3 @@
-#[allow(unused)]
-use core::mem;
 use reqwest::blocking::Client;
 use serde::Serialize;
 use thermite::enumeration::*;

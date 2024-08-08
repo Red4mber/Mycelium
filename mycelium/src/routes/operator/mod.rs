@@ -13,10 +13,12 @@ use crate::AppState;
 use crate::authentication::{auth_middleware};
 use crate::model::OperatorRecord;
 
-pub mod auth;
+mod auth;
 mod files;
 mod hosts;
 mod agents;
+mod tasks;
+
 
 /// Returns a router with all the routes of this module
 pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
@@ -26,6 +28,8 @@ pub fn get_routes(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
 		.route("/file/all", get(files::query_all_files))
 		.route("/agent/all", get(agents::query_all_agents))
 		.route("/agent/new", post(agents::new_agent))
+		.route("/task/new", post(tasks::new_task))
+		.route("/task/all", get(tasks::query_all_tasks))
 		.layer(from_fn_with_state(app_state.clone(), auth_middleware))
 		.route("/jwks", get(auth::jwks_handler))
 		.route("/login", post(auth::login_handler))

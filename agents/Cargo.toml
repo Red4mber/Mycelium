@@ -9,6 +9,10 @@ edition = "2021"
 name = "simple-beacon"
 path = "src/beacon.rs"
 
+[[bin]]
+name = "task-executor"
+path = "src/task_executor.rs"
+
 [dependencies]
 thermite = { git = "https://github.com/Red4mber/Thermite" }
 reqwest = { version = "0.12.5", features = ["json", "blocking"] }

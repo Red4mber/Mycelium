@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize, Serializer};
 use surrealdb::sql::{Datetime, Thing};
-use crate::model::{CPUArch, OSInfo};
-
 
 
 /// Struct used when querying a "Target" graph to see if an implant is on a Host
@@ -11,7 +9,26 @@ pub struct HostTarget {
 	pub host: Vec<Thing>
 }
 
+/// Struct used when querying a "Execute" graph to query an agent's tasks
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AgentTasks {
+	#[serde(rename = "->task")]
+	pub task: Vec<Thing>
+}
 
+
+/// Enum representing the most common CPU Architectures
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum CPUArch {
+	X86, AMD64, ARM, ARM64, MIPS, PowerPC, Unknown
+}
+
+/// Structure containing Operating system identification information 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OSInfo {
+	pub(crate) family: String,
+	pub(crate) version: String
+}
 /// Represents a row of the `Host` table
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HostRecord {
@@ -60,7 +77,23 @@ pub struct OperatorRecord {
 	pub name: String,
 	pub email: String,
 	pub admin: bool,
+}
 
+/// Enum representing the status of a Task
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum TaskStatus {
+	Pending, Running, Error, Success
+}
+
+/// Represents a row of the `Task` table
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TaskRecord {
+	#[serde(serialize_with = "simple_serializer")]
+	pub id: Thing,
+	pub time: TimeRecord,
+	pub command: String,
+	pub output: String,
+	pub status: TaskStatus,
 }
 
 
