@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize, Serializer};
 use surrealdb::sql::{Datetime, Thing};
+use crate::model::BeaconData;
 
 
 /// Struct used when querying a "Target" graph to see if an implant is on a Host
@@ -37,6 +38,24 @@ pub struct HostRecord {
 	pub users: Vec<String>,
 	pub os: OSInfo
 }
+impl From<BeaconData> for HostRecord {
+	fn from(data: BeaconData) -> Self {
+		let arch = match data.arch.as_str() {
+			"AMD64" => CPUArch::AMD64,
+			"ARM64" => CPUArch::ARM64,
+			"x86" => CPUArch::X86,
+			_ => CPUArch::Unknown
+		};
+		Self {
+			arch,
+			hostname: data.hostname,
+			users: data.users,
+			os: OSInfo { family: data.os_family, version: data.os_version },
+		}
+	}
+}
+
+
 /// Represents a row of the `Agent` table 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AgentRecord {

